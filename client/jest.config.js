@@ -33,47 +33,82 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
-    // Exclude UI-heavy files from global coverage (require manual/E2E testing)
+    // Entry points: direct DOM wiring, covered by E2E tests
     '!src/app.ts',
     '!src/delete.ts',
-    '!src/ui/**', // UI modules require E2E testing
-    '!src/features/**', // Feature modules require E2E testing
-    // Include core modules (validators and models) now that we have tests
-    // Exclude crypto module (covered in PR #1, has separate tests)
-    '!src/core/crypto/**',
+    // UI layer: requires E2E testing
+    '!src/ui/**',
+    // Feature wrappers: thin orchestration, covered by E2E tests
+    '!src/features/**',
+    // Crypto primitives: type-only interfaces and index re-exports
+    '!src/core/crypto/interfaces.ts',
+    '!src/core/crypto/index.ts',
     '!src/core/models/**', // Type-only module, no runtime code to test
-    '!src/core/services/**', // Domain services - will be tested in follow-up PRs
-    '!src/infrastructure/**',
-    '!src/application/**',
-    '!src/presentation/**',
-    // Exclude passive-events.ts (browser API monkey-patch utility, difficult to test in Jest)
+    // Infrastructure index re-exports (no logic)
+    '!src/infrastructure/api/index.ts',
+    '!src/infrastructure/pow/index.ts',
+    // Application index re-exports (no logic)
+    '!src/application/index.ts',
+    '!src/application/use-cases/index.ts',
+    '!src/application/dtos/paste-dtos.ts',
+    // Presentation index re-exports (no logic)
+    '!src/presentation/index.ts',
+    '!src/presentation/components/index.ts',
+    // Passive-events: browser API monkey-patch, not testable in Jest
     '!src/utils/passive-events.ts',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
+    // Global threshold covers the full included set — presentation components
+    // (chat-view, paste-viewer-view, etc.) are primarily E2E-tested which
+    // naturally limits branch coverage in unit tests.
     global: {
-      branches: 50,
-      functions: 65,
-      lines: 50,
-      statements: 50
-    },
-    // Critical security files require high coverage
-    // Starting at 70% during refactoring, will increase to 90+ by end of PR series
-    // TODO: Increase to 75% in PR #3, 80% in PR #5, 90%+ by PR #13
-    './src/security.ts': {
-      branches: 70,
+      branches: 45,
       functions: 70,
-      lines: 75,
-      statements: 75
+      lines: 65,
+      statements: 65
     },
-    // Core modules require high coverage (PR #2)
-    // Starting at 75% during refactoring, will increase to 90+ by end of PR series
+    // Security-critical files: high coverage required
+    './src/security.ts': {
+      branches: 85,
+      functions: 100,
+      lines: 95,
+      statements: 95
+    },
     './src/core/validators/index.ts': {
-      branches: 75,
-      functions: 75,
-      lines: 75,
-      statements: 75
+      branches: 90,
+      functions: 100,
+      lines: 95,
+      statements: 95
+    },
+    './src/core/utils/sanitize.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100
+    },
+    // Newly covered modules
+    './src/core/services/encryption-service.ts': {
+      branches: 80,
+      functions: 100,
+      lines: 90,
+      statements: 90
+    },
+    './src/core/services/paste-service.ts': {
+      branches: 80,
+      functions: 100,
+      lines: 90,
+      statements: 90
+    },
+    // storage.ts branch coverage is capped at ~60% in jsdom: the
+    // `typeof window === 'undefined'` server-side guard branches are
+    // unreachable in a browser-like test environment.
+    './src/utils/storage.ts': {
+      branches: 55,
+      functions: 100,
+      lines: 95,
+      statements: 95
     }
   },
   setupFiles: ['<rootDir>/tests/setup.ts'],

@@ -25,12 +25,38 @@ describe('Storage Utilities', () => {
       const storage = sessionStorageSafe();
       expect(storage).toBe(window.sessionStorage);
     });
+
+    it('should return null when sessionStorage access throws (e.g. Safari private mode)', () => {
+      const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+      Object.defineProperty(window, 'sessionStorage', {
+        get() { throw new Error('SecurityError: The operation is insecure.'); },
+        configurable: true,
+      });
+      try {
+        expect(sessionStorageSafe()).toBeNull();
+      } finally {
+        if (original) Object.defineProperty(window, 'sessionStorage', original);
+      }
+    });
   });
 
   describe('localStorageSafe', () => {
     it('should return localStorage when available', () => {
       const storage = localStorageSafe();
       expect(storage).toBe(window.localStorage);
+    });
+
+    it('should return null when localStorage access throws (e.g. Safari private mode)', () => {
+      const original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+      Object.defineProperty(window, 'localStorage', {
+        get() { throw new Error('SecurityError: The operation is insecure.'); },
+        configurable: true,
+      });
+      try {
+        expect(localStorageSafe()).toBeNull();
+      } finally {
+        if (original) Object.defineProperty(window, 'localStorage', original);
+      }
     });
   });
 
