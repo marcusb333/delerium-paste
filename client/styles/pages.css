@@ -21,6 +21,18 @@ body {
   line-height: var(--leading-normal);
 }
 
+a {
+  color: var(--info);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: color var(--transition-base), text-decoration-color var(--transition-base);
+}
+
+a:hover {
+  color: var(--info-light);
+  text-decoration-color: var(--info-light);
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -221,13 +233,14 @@ textarea:focus {
 }
 
 .markdown-preview a {
-  color: var(--text-light);
+  color: var(--info);
   text-decoration: underline;
-  text-decoration-color: var(--border);
+  text-decoration-color: var(--info-dark);
 }
 
 .markdown-preview a:hover {
-  color: var(--text);
+  color: var(--info-light);
+  text-decoration-color: var(--info-light);
 }
 
 .markdown-preview code {
