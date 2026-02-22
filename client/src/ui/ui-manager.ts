@@ -133,7 +133,7 @@ export function initializeWindowUI(): void {
         viewBtn.parentNode?.replaceChild(newBtn, viewBtn);
         newBtn.style.display = 'inline-block';
         newBtn.addEventListener('click', () => {
-          window.open(url, '_blank', 'noopener,noreferrer');
+          window.location.href = url;
         });
       }
 

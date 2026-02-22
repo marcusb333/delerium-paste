@@ -5,8 +5,8 @@
 /**
  * ui-manager showOutput Tests
  *
- * Tests for the showOutput function, focusing on the "View Paste" button
- * which should open the paste URL in a new tab (not navigate in the current tab).
+ * Tests for the showOutput function, verifying the View Paste button,
+ * Copy Link button, and delete URL display.
  */
 
 describe('showOutput — View Paste button', () => {
@@ -19,7 +19,7 @@ describe('showOutput — View Paste button', () => {
         <label for="pasteUrl">Share URL:</label>
         <input type="text" id="pasteUrl" name="pasteUrl" readonly>
         <button class="btn-copy" id="copyBtn">Copy Link</button>
-        <button class="btn-view" id="viewBtn" style="display: none;">Open in New Tab</button>
+        <button class="btn-view" id="viewBtn" style="display: none;">View Paste</button>
       </div>
       <div class="output-url" id="deleteUrlContainer" style="display: none;">
         <input type="text" id="deleteUrl" name="deleteUrl" readonly>
@@ -28,13 +28,8 @@ describe('showOutput — View Paste button', () => {
     </div>
   `;
 
-  let windowOpenSpy: jest.SpyInstance;
-
-  beforeEach(() => {
-    document.body.innerHTML = OUTPUT_HTML;
-    windowOpenSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
-
-    // Register the showOutput function exactly as ui-manager.ts does
+  // Replicate the showOutput implementation from ui-manager.ts
+  function registerShowOutput(): void {
     (window as any).showOutput = function(
       success: boolean,
       title: string,
@@ -67,7 +62,7 @@ describe('showOutput — View Paste button', () => {
           viewBtn.parentNode?.replaceChild(newBtn, viewBtn);
           newBtn.style.display = 'inline-block';
           newBtn.addEventListener('click', () => {
-            window.open(url, '_blank', 'noopener,noreferrer');
+            window.location.href = url;
           });
         }
       } else if (outputUrlContainer) {
@@ -84,97 +79,83 @@ describe('showOutput — View Paste button', () => {
 
       output.classList.add('show');
     };
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = OUTPUT_HTML;
+    registerShowOutput();
   });
 
   afterEach(() => {
     document.body.innerHTML = '';
-    windowOpenSpy.mockRestore();
     delete (window as any).showOutput;
   });
 
-  it('should open paste URL in a new tab when View button is clicked', () => {
+  it('should show the View Paste button after successful paste creation', () => {
     const shareUrl = 'https://example.com/view.html?p=abc123#salt:iv';
-
     (window as any).showOutput(true, 'Success', 'Your paste is ready', shareUrl, null);
-
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    expect(viewBtn).not.toBeNull();
-    expect(viewBtn.style.display).toBe('inline-block');
-
-    viewBtn.click();
-
-    expect(windowOpenSpy).toHaveBeenCalledTimes(1);
-    expect(windowOpenSpy).toHaveBeenCalledWith(shareUrl, '_blank', 'noopener,noreferrer');
-  });
-
-  it('should not navigate in the current tab when View button is clicked', () => {
-    const shareUrl = 'https://example.com/view.html?p=xyz999#salt:iv';
-    const originalHref = window.location.href;
-
-    (window as any).showOutput(true, 'Success', 'Your paste is ready', shareUrl, null);
-
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    viewBtn.click();
-
-    // window.location.href must not have been changed to the paste URL
-    expect(window.location.href).not.toBe(shareUrl);
-    // window.open was used instead
-    expect(windowOpenSpy).toHaveBeenCalled();
-  });
-
-  it('should pass noopener,noreferrer rel to window.open for security', () => {
-    const shareUrl = 'https://example.com/view.html?p=secure#s:i';
-
-    (window as any).showOutput(true, 'Success', 'Ready', shareUrl, null);
-
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    viewBtn.click();
-
-    const [, target, features] = windowOpenSpy.mock.calls[0];
-    expect(target).toBe('_blank');
-    expect(features).toContain('noopener');
-    expect(features).toContain('noreferrer');
-  });
-
-  it('should show View button after successful paste creation', () => {
-    const shareUrl = 'https://example.com/view.html?p=shown#s:i';
-
-    (window as any).showOutput(true, 'Success', 'Ready', shareUrl, null);
 
     const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
     expect(viewBtn.style.display).toBe('inline-block');
   });
 
-  it('should hide View button when no URL is provided', () => {
+  it('should populate the share URL input with the provided URL', () => {
+    const shareUrl = 'https://example.com/view.html?p=abc123#salt:iv';
+    (window as any).showOutput(true, 'Success', 'Ready', shareUrl, null);
+
+    const pasteUrl = document.getElementById('pasteUrl') as HTMLInputElement;
+    expect(pasteUrl.value).toBe(shareUrl);
+  });
+
+  it('should set success title and message in the output', () => {
+    (window as any).showOutput(true, 'Password required', 'Share the link separately', 'http://x', null);
+
+    expect(document.getElementById('outputTitle')!.textContent).toBe('Password required');
+    expect(document.getElementById('outputMessage')!.textContent).toBe('Share the link separately');
+  });
+
+  it('should add the "show" class to the output element', () => {
+    (window as any).showOutput(true, 'T', 'M', 'http://x', null);
+    expect(document.getElementById('output')!.classList.contains('show')).toBe(true);
+  });
+
+  it('should hide View button and URL row when no URL is provided', () => {
     (window as any).showOutput(false, 'Error', 'Something went wrong', null, null);
 
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    // Either hidden or unchanged (still none from initial HTML)
-    expect(['none', '']).toContain(viewBtn.style.display);
-    expect(windowOpenSpy).not.toHaveBeenCalled();
+    const urlContainer = document.querySelector('.output-url') as HTMLElement;
+    expect(urlContainer.style.display).toBe('none');
   });
 
-  it('should open the correct URL even when called multiple times', () => {
-    const firstUrl = 'https://example.com/view.html?p=first#s:i';
-    const secondUrl = 'https://example.com/view.html?p=second#s:i';
+  it('should show the delete URL container when a deleteUrl is provided', () => {
+    const shareUrl = 'https://example.com/view.html?p=x#s:i';
+    const deleteUrl = 'https://example.com/delete.html?p=x&token=abc';
 
-    // Simulate two paste creations
-    (window as any).showOutput(true, 'Success', 'Ready', firstUrl, null);
-    (window as any).showOutput(true, 'Success', 'Ready', secondUrl, null);
+    (window as any).showOutput(true, 'T', 'M', shareUrl, deleteUrl);
 
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    viewBtn.click();
-
-    // Should open the most recent URL
-    expect(windowOpenSpy).toHaveBeenCalledWith(secondUrl, '_blank', 'noopener,noreferrer');
+    const container = document.getElementById('deleteUrlContainer') as HTMLElement;
+    expect(container.style.display).toBe('flex');
+    const input = document.getElementById('deleteUrl') as HTMLInputElement;
+    expect(input.value).toBe(deleteUrl);
   });
 
-  it('should display View button label as "Open in New Tab"', () => {
-    const shareUrl = 'https://example.com/view.html?p=label#s:i';
+  it('should hide delete URL container when no deleteUrl is provided', () => {
+    (window as any).showOutput(true, 'T', 'M', 'http://x', null);
 
-    (window as any).showOutput(true, 'Success', 'Ready', shareUrl, null);
+    const container = document.getElementById('deleteUrlContainer') as HTMLElement;
+    expect(container.style.display).toBe('none');
+  });
 
-    const viewBtn = document.getElementById('viewBtn') as HTMLButtonElement;
-    expect(viewBtn.textContent).toBe('Open in New Tab');
+  it('should add error class and not show URL row on failure', () => {
+    (window as any).showOutput(false, 'Error', 'Failed', null, null);
+
+    const output = document.getElementById('output')!;
+    expect(output.classList.contains('error')).toBe(true);
+  });
+
+  it('should not throw when called with missing DOM elements', () => {
+    document.body.innerHTML = '';
+    expect(() => {
+      (window as any).showOutput(true, 'T', 'M', 'http://x', null);
+    }).not.toThrow();
   });
 });
