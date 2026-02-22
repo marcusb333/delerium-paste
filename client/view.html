@@ -191,6 +191,39 @@
       }
       .version-display:hover { border-color: var(--primary-dim); color: var(--text); }
 
+      /* Link popup — shown when user clicks a link in paste content */
+      .link-popup {
+        position: fixed;
+        z-index: 1000;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 160px;
+        animation: fadeInDown 0.12s ease-out;
+      }
+      .link-popup-btn {
+        display: block;
+        width: 100%;
+        padding: 0.6rem 1rem;
+        text-align: left;
+        background: none;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-family: var(--font-sans);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background 0.15s;
+      }
+      .link-popup-btn:last-child { border-bottom: none; }
+      .link-popup-btn:hover { background: var(--bg-secondary); color: var(--primary-hover); }
+      .link-popup-btn:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+
       /* Footer */
       .footer {
         margin-top: 2rem;

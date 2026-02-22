@@ -16,6 +16,100 @@ import type { PasteMetadata } from '../../core/models/paste.js';
 import { isFailure } from '../../core/models/result.js';
 
 /**
+ * Intercept clicks on links inside rendered paste content.
+ * Instead of navigating away, shows a small popup offering:
+ *   - Copy Link  (copies the resolved href to clipboard)
+ *   - Open in New Tab  (window.open with noopener,noreferrer)
+ *
+ * Uses event delegation — a single listener on the container element.
+ */
+export function setupLinkInterception(container: HTMLElement): void {
+  let popup: HTMLElement | null = null;
+  let cleanupListeners: (() => void) | null = null;
+
+  const dismissPopup = (): void => {
+    popup?.remove();
+    popup = null;
+    cleanupListeners?.();
+    cleanupListeners = null;
+  };
+
+  container.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+    if (!anchor) return;
+
+    // Defense in depth: never act on javascript: URLs
+    // (sanitizeHtml already strips these, but be explicit)
+    if (/^javascript:/i.test(anchor.getAttribute('href')?.trim() ?? '')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    dismissPopup();
+
+    const resolvedHref = anchor.href; // absolute resolved URL
+
+    popup = document.createElement('div');
+    popup.className = 'link-popup';
+    popup.setAttribute('role', 'dialog');
+    popup.setAttribute('aria-label', 'Link options');
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'link-popup-btn';
+    copyBtn.textContent = 'Copy Link';
+    copyBtn.type = 'button';
+
+    const openBtn = document.createElement('button');
+    openBtn.className = 'link-popup-btn';
+    openBtn.textContent = 'Open in New Tab';
+    openBtn.type = 'button';
+
+    copyBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(resolvedHref).catch(() => { /* silent */ });
+      }
+      copyBtn.textContent = '✓ Copied!';
+      window.setTimeout(dismissPopup, 1500);
+    });
+
+    openBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      window.open(resolvedHref, '_blank', 'noopener,noreferrer');
+      dismissPopup();
+    });
+
+    popup.appendChild(copyBtn);
+    popup.appendChild(openBtn);
+
+    // Position below the click, clamped inside the viewport
+    const x = Math.min(e.clientX, window.innerWidth - 180);
+    const y = e.clientY + 10;
+    popup.style.left = `${x}px`;
+    popup.style.top = `${y}px`;
+    document.body.appendChild(popup);
+
+    // Dismiss on outside click (deferred so this click event doesn't close it immediately)
+    const onDocClick = (ev: MouseEvent): void => {
+      if (popup && !popup.contains(ev.target as Node)) dismissPopup();
+    };
+    const onKeyDown = (ev: KeyboardEvent): void => {
+      if (ev.key === 'Escape') dismissPopup();
+    };
+    window.setTimeout(() => {
+      document.addEventListener('click', onDocClick);
+      document.addEventListener('keydown', onKeyDown);
+    }, 0);
+    cleanupListeners = () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+
+    copyBtn.focus();
+  });
+}
+
+/**
  * Render decrypted text content into the #content element as sanitized markdown.
  * Falls back to plain-text display if marked is unavailable.
  * SECURITY: sanitizeHtml() is called before every innerHTML assignment.
@@ -203,6 +297,7 @@ export class PasteViewerView {
         content.classList.remove('loading');
         content.classList.remove('error');
         renderMarkdown(content, decryptedText);
+        setupLinkInterception(content);
       }
 
       if (updateStatus) updateStatus(true, 'Decrypted successfully');
