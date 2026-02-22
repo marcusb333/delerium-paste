@@ -25,6 +25,7 @@ Share URL: domain.com/view?p=ID#salt:iv  (key stays client-side)
 **Frontend (client/):**
 - TypeScript with strict mode, ES Modules
 - Web Crypto API for encryption
+- Vendored `marked.js` (Markdown rendering) and `highlight.js` (syntax highlighting) — no CDN dependencies
 - Jest (unit/integration), Playwright (e2e)
 - ESLint, 85% minimum code coverage
 
@@ -38,6 +39,33 @@ Share URL: domain.com/view?p=ID#salt:iv  (key stays client-side)
 - Docker + Docker Compose
 - Nginx reverse proxy
 - Multi-architecture support (AMD64, ARM64, ARM/v7)
+
+---
+
+## CRITICAL: Never Push Directly to Main
+
+> **This is the single most important rule for AI assistants working in this repo.**
+
+**NEVER push to `main` or `master`.** Always work on a feature branch and open a Pull Request.
+
+```
+❌ BAD:  git push origin main
+❌ BAD:  git push origin master
+✅ GOOD: git checkout -b draft/my-feature
+✅ GOOD: git push -u origin draft/my-feature
+✅ GOOD: gh pr create ...
+```
+
+**Mandatory workflow for every change:**
+1. Check current branch: `git branch --show-current`
+2. If on `main` or `master`, create a feature branch immediately: `git checkout -b draft/<description>`
+3. Make all changes on the feature branch
+4. Push only to the feature branch
+5. Open a PR via `gh pr create` — never merge directly
+
+This protects the production branch and ensures all changes are reviewed.
+
+---
 
 ## High-Risk Change Protocol (CRITICAL)
 
@@ -157,6 +185,8 @@ Identify and document ALL edge cases:
 - Rapid message posting hitting rate limits
 - Chat encryption key mismatch with paste key
 - Message timestamps in different timezones
+- Username truncation (max 20 chars)
+- Backward-compatible JSON format vs old plain-text format
 
 **URL/Fragment:**
 - URL encoding of salt/IV (special characters)
@@ -260,10 +290,11 @@ Before submitting high-risk PR:
 **Privacy Review:**
 - [ ] URL fragments used for all key material
 - [ ] No analytics or tracking code
-- [ ] No external resources loaded (CDNs, fonts, etc.)
+- [ ] No external resources loaded (CDNs, fonts, etc.) — use vendored libs in `client/vendor/`
 - [ ] Server never sees plaintext or keys
 - [ ] Network requests reviewed for information leakage
 - [ ] Browser history/cache can't leak sensitive data
+- [ ] `sanitizeHtml()` used before any `innerHTML` assignment
 
 **Testing Review:**
 - [ ] 100% coverage for all changed security-critical code
@@ -327,6 +358,7 @@ Result: ❌ REJECTED - violates protocol
 **ALWAYS apply full protocol for:**
 - Any changes to `client/src/core/crypto/`
 - Any changes to `client/src/security.ts`
+- Any changes to `client/src/core/utils/sanitize.ts`
 - Password or authentication changes
 - Key generation or derivation changes
 - Network request modifications
@@ -413,28 +445,119 @@ make clean                    # Remove containers, volumes, build artifacts
 ## Directory Structure & Key Files
 
 ### Client Architecture
+
+The client follows a layered architecture. **Always read `.ts` source files in `client/src/`, NOT compiled `.js` files.**
+
 ```
 client/
 ├── src/
-│   ├── core/                    # Domain layer (framework-agnostic)
-│   │   ├── crypto/              # Encryption implementations
-│   │   │   ├── interfaces.ts    # ICryptoProvider interface
-│   │   │   ├── aes-gcm.ts       # AES-GCM implementation
-│   │   │   └── encoding.ts      # Base64URL utilities
-│   │   ├── models/              # Data models (Result<T>, Paste types)
-│   │   └── validators/          # Business rule validators
-│   ├── features/                # Application features
-│   │   ├── paste-creator.ts    # Paste creation workflow
-│   │   └── paste-viewer.ts     # Paste viewing workflow
-│   ├── infrastructure/          # External integrations
-│   │   ├── api/                 # HTTP API client
-│   │   └── pow/                 # Proof-of-work solver
-│   ├── security.ts              # Password crypto, security utilities
-│   └── app.ts                   # Main entry point
+│   ├── app.ts                       # Main entry point (index.html)
+│   ├── delete.ts                    # Delete page entry point (delete.html)
+│   ├── security.ts                  # Core crypto: encryptWithPassword, decryptWithPassword,
+│   │                                #   deriveDeleteAuth, deriveKeyFromPassword, secureClear
+│   │
+│   ├── application/                 # Application layer — use cases and DTOs
+│   │   ├── dtos/
+│   │   │   └── paste-dtos.ts        # CreatePasteCommand, PasteCreated, ViewPasteResult, etc.
+│   │   └── use-cases/
+│   │       ├── create-paste-use-case.ts  # Orchestrates: validate → encrypt → PoW → submit → URL
+│   │       ├── view-paste-use-case.ts    # Orchestrates: fetch → decrypt → display
+│   │       ├── delete-paste-use-case.ts  # Token-based and password-based deletion
+│   │       └── chat-use-case.ts          # Send/receive encrypted chat messages
+│   │
+│   ├── core/                        # Domain layer (framework-agnostic)
+│   │   ├── crypto/
+│   │   │   ├── interfaces.ts        # ICryptoProvider interface
+│   │   │   ├── aes-gcm.ts           # Low-level AES-GCM implementation
+│   │   │   └── encoding.ts          # Base64URL encode/decode utilities
+│   │   ├── models/
+│   │   │   ├── result.ts            # Result<T,E> type: success() / failure() / isFailure()
+│   │   │   └── paste.ts             # Paste domain types, CreatePasteRequest, GetPasteResponse
+│   │   ├── services/
+│   │   │   ├── encryption-service.ts # EncryptionService: encryptPaste, decryptPaste,
+│   │   │   │                         #   encryptChatMessage, decryptChatMessage, deriveDeleteAuth
+│   │   │   └── paste-service.ts      # PasteService: validate, buildShareUrl, buildDeleteUrl,
+│   │   │                             #   parseViewUrl, calculateExpirationTimestamp
+│   │   ├── utils/
+│   │   │   └── sanitize.ts          # sanitizeHtml() — DOM-walker sanitizer for markdown output.
+│   │   │                            #   REQUIRED before any innerHTML assignment.
+│   │   └── validators/
+│   │       └── index.ts             # validateContentSize, validateExpiration, validatePassword
+│   │
+│   ├── features/                    # Legacy feature orchestration (thin wrappers)
+│   │   ├── paste-creator.ts         # Wires up CreatePasteUseCase + PasteCreatorView
+│   │   ├── paste-viewer.ts          # Wires up ViewPasteUseCase + PasteViewerView
+│   │   └── paste-chat.ts            # Wires up ChatUseCase + ChatView
+│   │
+│   ├── infrastructure/              # External integrations
+│   │   ├── api/
+│   │   │   ├── interfaces.ts        # IApiClient interface
+│   │   │   ├── http-client.ts       # Fetch-based HTTP API client
+│   │   │   └── mock-client.ts       # In-memory mock for tests
+│   │   └── pow/
+│   │       ├── interfaces.ts        # IPowSolver interface
+│   │       └── inline-solver.ts     # SHA-256 PoW solver (yields every 1000 iterations)
+│   │
+│   ├── presentation/                # Presentation layer — UI components
+│   │   └── components/
+│   │       ├── paste-creator-view.ts  # Markdown editor tabs, toolbar, form submit handler
+│   │       ├── paste-viewer-view.ts   # Paste display, destroy button, syntax highlighting
+│   │       ├── chat-view.ts           # Chat display, message sending, 30s auto-poll
+│   │       ├── password-modal.ts      # Reusable password prompt modal
+│   │       └── loading-indicator.ts   # Loading state management
+│   │
+│   ├── ui/
+│   │   ├── dom-helpers.ts           # Low-level DOM utilities
+│   │   └── ui-manager.ts            # showLoading(), showError(), showSuccess()
+│   │
+│   ├── utils/
+│   │   ├── storage.ts               # sessionStorage helpers, delete token persistence
+│   │   └── passive-events.ts        # Passive event listener registration
+│   │
+│   └── types/
+│       └── vendor.d.ts              # Type declarations for vendored libs (marked, hljs)
+│
+├── vendor/
+│   ├── marked.min.js                # Markdown parser (vendored, no CDN)
+│   └── highlight.min.js             # Syntax highlighter (vendored, no CDN)
+│
+├── styles/
+│   ├── design-system.css            # CSS custom properties, tokens
+│   ├── components.css               # Reusable component styles
+│   ├── pages.css                    # Page-specific layouts
+│   ├── chat.css                     # Chat UI styles
+│   ├── modals.css                   # Modal/overlay styles
+│   ├── loading.css                  # Loading indicator styles
+│   ├── mobile.css                   # Responsive/mobile overrides
+│   └── highlight-dark.min.css       # Syntax highlighting theme (vendored)
+│
+├── index.html                       # Paste creation page
+├── view.html                        # Paste viewing page
+├── delete.html                      # Paste deletion page (token-based)
 ├── tests/
-│   ├── unit/                    # Fast, isolated tests (*.test.ts)
-│   ├── integration/             # API endpoint tests (*.test.ts)
-│   └── e2e/                     # Full user flows (*.spec.ts)
+│   ├── unit/                        # Fast, isolated tests (*.test.ts)
+│   │   ├── core/crypto/             # aes-gcm.test.ts, encoding.test.ts
+│   │   ├── core/models.test.ts
+│   │   ├── core/validators.test.ts
+│   │   ├── core/utils/sanitize.test.ts
+│   │   ├── features/                # paste-creator.test.ts, paste-viewer.test.ts, paste-chat.test.ts
+│   │   ├── infrastructure/          # api-client.test.ts, pow-solver.test.ts
+│   │   ├── presentation/            # chat-view.test.ts, paste-creator-view.test.ts
+│   │   ├── ui/                      # dom.test.ts, loading-states.test.ts
+│   │   ├── utils/storage.test.ts
+│   │   ├── security.test.ts
+│   │   └── high-risk-edge-cases.test.ts
+│   ├── integration/
+│   │   └── chat-api.test.ts
+│   ├── load/
+│   │   └── pow-load.test.ts
+│   ├── e2e/                         # Playwright tests (*.spec.ts)
+│   │   ├── paste-flow.spec.ts
+│   │   ├── delete-paste.spec.ts
+│   │   ├── view-paste-destroy.spec.ts
+│   │   ├── footer-links.spec.ts
+│   │   └── ui-snapshots.spec.ts
+│   └── setup.ts                     # Jest test environment setup
 └── package.json
 ```
 
@@ -442,96 +565,101 @@ client/
 ```
 server/
 ├── src/main/kotlin/
-│   ├── App.kt                   # Application setup, DI, config
-│   ├── Routes.kt                # API endpoints (POST/GET/DELETE /api/pastes, GET /api/pow)
-│   ├── Storage.kt               # Database schema, repository
-│   ├── Pow.kt                   # Proof-of-work service
-│   ├── RateLimiter.kt           # Token bucket rate limiter
-│   ├── Models.kt                # Request/response DTOs
-│   └── Utils.kt                 # ID generation, Base64 utils
-├── BUILD.bazel                  # Bazel build configuration
-├── Dockerfile                   # Multi-stage Docker build
-└── src/test/kotlin/             # Kotlin tests
+│   ├── App.kt               # Application setup, DI, config loading
+│   ├── Routes.kt            # All API endpoints — see API Endpoints section
+│   ├── Storage.kt           # SQLite schema, PasteRepo, chat message repo
+│   ├── DataKeyManager.kt    # Server-side AES-256-GCM key rotation for metadata fields
+│   │                        #   (deleteAuth hashes). Manages keyring, rotates on schedule.
+│   ├── Pow.kt               # Proof-of-work challenge generation and verification
+│   ├── RateLimiter.kt       # Token bucket rate limiter (per-IP)
+│   ├── Models.kt            # Request/response DTOs (CreatePasteRequest, etc.)
+│   └── Utils.kt             # Ids.randomId(), base64UrlSize()
+├── BUILD.bazel              # Bazel build configuration
+├── Dockerfile               # Multi-stage Docker build (Eclipse Temurin 25 JRE)
+└── src/test/kotlin/         # Kotlin tests
 ```
 
 ### Important Files to Read
 - `README.md` - Project documentation index
-- `.cursorrules` - Change documentation organization rules
 - `.cursor/rules/workspace.md` - Comprehensive workspace rules (security, testing, API contracts)
 - `docs/architecture/C4-DIAGRAMS.md` - Architecture diagrams (System, Container, Component levels)
-- `docs/prs/README.md` - PR workflow and contribution guide
+- `docs/security/CHECKLIST.md` - Security audit checklist
+- `client/tests/README.md` - Testing standards
 - `Makefile` - All available commands
 
 ## Critical Code Flows
 
 ### Paste Creation Flow
-1. User enters content + settings (expiration, password, key caching preference)
-2. Client validates size, expiration, password strength
-3. Client derives encryption key from password via PBKDF2
-4. Client encrypts content with AES-GCM
-5. Client derives delete authorization from password (separate PBKDF2 with modified salt)
-6. Client requests PoW challenge: `GET /api/pow`
-7. Client solves PoW (find SHA-256 hash with N leading zero bits)
-8. Client submits: `POST /api/pastes` with {ciphertext, IV, metadata, PoW, deleteAuth}
-9. Server verifies PoW, checks rate limit, validates size
-10. Server stores encrypted paste + hashed deleteAuth in SQLite
-11. Server returns paste ID + deletion token
-12. Client builds share URL: `domain.com/view?p=ID#salt:iv` (key in fragment!)
-13. Client displays delete URL separately to the creator
+
+Implemented in `CreatePasteUseCase.execute()`:
+
+1. User enters content + settings (expiration, password) in `index.html`
+2. `PasteCreatorView.handleSubmit()` triggers use case
+3. `PasteService.validatePasteCreation()` validates size, expiration, password, UTF-8
+4. `EncryptionService.encryptPaste()` calls `encryptWithPassword()` → PBKDF2 → AES-256-GCM
+5. `EncryptionService.deriveDeleteAuth()` derives delete auth (separate PBKDF2 with `salt + ":delete"`)
+6. `IApiClient.getPowChallenge()` → `GET /api/pow`
+7. `IPowSolver.solve()` finds SHA-256 nonce with required leading zero bits
+8. `IApiClient.createPaste()` → `POST /api/pastes` with `{ct, iv, meta: {expireTs, mime, allowChat}, pow, deleteAuth}`
+9. Server verifies PoW, rate-limits, validates sizes, stores in SQLite, returns `{id, deleteToken}`
+10. `PasteService.buildShareUrl()` → `domain.com/view.html?p=ID#salt:iv` (key only in fragment!)
+11. `PasteService.buildDeleteUrl()` → `domain.com/delete.html?p=ID&token=...`
+12. Delete token stored in `sessionStorage` (not `localStorage`) via `storeDeleteToken()`
 
 ### Paste Viewing Flow
-1. User opens URL with ID in query string, salt:iv in fragment
-2. Client prompts for password
-3. Client fetches: `GET /api/pastes/{ID}`
-4. Server returns encrypted ciphertext + IV + metadata
-5. Client derives key from password + salt
-6. Client decrypts with AES-GCM
-7. Client displays plaintext
-8. Client shows "Destroy Paste" button (requires password to use)
-9. Client initializes anonymous chat (using same salt from paste)
+
+Implemented in `ViewPasteUseCase`:
+
+1. User opens URL: paste ID in query string (`?p=`), salt:iv in URL fragment (`#`)
+2. `PasteService.parseViewUrl()` extracts `pasteId`, `salt`, `iv` from URL
+3. `PasswordModal` prompts for password
+4. `IApiClient.retrievePaste()` → `GET /api/pastes/{ID}`
+5. Server returns `{ct, iv, meta}` (always encrypted, never plaintext)
+6. `EncryptionService.decryptPaste()` derives key from password + salt, decrypts with AES-256-GCM
+7. `PasteViewerView` displays content — if markdown, renders via `marked.parse()` → `sanitizeHtml()` → `innerHTML`
+8. Syntax highlighting applied to code blocks via `hljs.highlightElement()`
+9. "Destroy Paste" button available (password-based deletion)
+10. Chat section auto-initializes with 30-second polling
 
 ### Paste Deletion Flow
 
-**Two ways to delete a paste:**
+**Two methods:**
 
-1. **Creator-only (delete token):**
-   - Creator receives unique delete URL at creation time
-   - Uses `DELETE /api/pastes/{id}?token=...`
-   - Token is random, stored hashed server-side
+1. **Creator-only (delete token) — `delete.html`:**
+   - Creator receives delete URL at creation time: `delete.html?p=ID&token=...`
+   - `DELETE /api/pastes/{id}?token=...`
+   - Token is random, stored hashed (SHA-256 + pepper) server-side
+   - Returns 204 on success, 403 on invalid token
 
-2. **Anyone with password:**
-   - "Destroy Paste" button on view page
-   - Client prompts for password
-   - Client derives delete auth from password + salt + ":delete"
-   - Client sends `POST /api/pastes/{id}/delete` with {deleteAuth}
-   - Server verifies hashed deleteAuth matches stored hash
-   - Paste and all chat messages are deleted (CASCADE)
+2. **Anyone with password — "Destroy Paste" button:**
+   - Client derives `deleteAuth` from `password + salt + ":delete"` via PBKDF2
+   - `POST /api/pastes/{id}/delete` with `{deleteAuth}`
+   - Server compares hashed deleteAuth; brute-force protection via `FailedAttemptTracker`
+     (10 failures within 5 minutes blocks the paste ID)
+   - Returns 204 on success, 403 on mismatch, 429 on too many attempts
+   - CASCADE deletes all chat messages
 
 ### Anonymous Chat Flow
-1. User views decrypted paste, sees chat section
-2. User clicks "Refresh Messages"
-3. Client prompts for password
-4. Client fetches: `GET /api/pastes/{ID}/messages`
-5. Server returns encrypted messages (ct, iv, timestamp)
-6. Client derives key from password + paste salt (same as paste)
-7. Client decrypts each message with AES-GCM
-8. Client displays messages with timestamps
-9. User types message and clicks "Send"
-10. Client prompts for password again
-11. Client derives key, encrypts message with new IV
-12. Client submits: `POST /api/pastes/{ID}/messages` with {ct, iv}
-13. Server validates paste exists, checks rate limit, validates size
-14. Server stores encrypted message (maintains 50-message limit)
-15. Server returns message count
-16. Client refreshes messages to show new message
 
-**Note**: All chat messages use the same password and salt as the paste. Messages expire/delete when paste expires/deletes (CASCADE).
+1. Chat auto-initializes on paste view page with 30-second polling
+2. Messages fetched: `GET /api/pastes/{ID}/messages`
+3. Server returns list of `{ct, iv, timestamp}` (always encrypted)
+4. `EncryptionService.decryptChatMessage()` decrypts each message with paste key
+   - New format: JSON payload `{text, username}` (username truncated to 20 chars)
+   - Old format: plain text string (backward compatible)
+5. User types message + optional username, clicks "Send"
+6. `EncryptionService.encryptChatMessage()` encrypts JSON payload with paste key
+7. `POST /api/pastes/{ID}/messages` with `{ct, iv}`
+8. Server enforces 50-message FIFO limit, rate-limits per IP
+
+**Note**: Chat uses the same password and salt as the paste. Messages cascade-delete with paste.
 
 ### Anti-Spam Mechanisms
-- **Proof-of-Work**: Client solves SHA-256 puzzle (10-bit difficulty = ~1024 attempts, <1 second)
-- **Rate Limiting**: Token bucket (30 requests/minute per IP)
-- **Size Limits**: 1MB max paste size
-- **Expiration**: Automatic cleanup of expired pastes
+- **Proof-of-Work**: SHA-256 puzzle (10-bit difficulty ≈ 1024 attempts, <1 second)
+- **Rate Limiting**: Token bucket (30 req/min per IP); separate bucket for messages
+- **Size Limits**: 8MB max paste size (supports encrypted image pastes), 10KB per chat message
+- **Brute-force Protection**: `FailedAttemptTracker` blocks paste ID after 10 failed delete attempts in 5 min
+- **Expiration**: Hourly cleanup of expired pastes
 
 ## Code Style & Conventions
 
@@ -540,8 +668,8 @@ server/
 - 2-space indentation
 - camelCase for variables/functions, UpperCamelCase for classes
 - kebab-case for filenames
-- Explicit types preferred over inference
-- Export main functions for testing
+- Explicit types preferred over `any`
+- Export main functions/classes for testing
 - JSDoc comments for public APIs
 
 ### Kotlin
@@ -552,26 +680,32 @@ server/
 - Immutable properties preferred
 
 ### HTML
-- **Unique IDs across all HTML files**: Element IDs must be unique not just within a single file, but across ALL HTML files (`index.html`, `view.html`, etc.) to avoid browser autofill warnings
-- Use page-specific prefixes for IDs that serve similar purposes: e.g., `copyBtn` (index) vs `copyContentBtn` (view)
+- **Unique IDs across all HTML files**: Element IDs must be unique across `index.html`, `view.html`, `delete.html`, etc. to avoid browser autofill warnings
+- Use page-specific prefixes for IDs serving similar purposes: e.g., `copyBtn` (index) vs `copyContentBtn` (view)
 - Semantic HTML elements with proper ARIA attributes
 - All form inputs must have associated labels
 
+### XSS / innerHTML Safety
+- **NEVER** assign `innerHTML` directly from user content or markdown output
+- **ALWAYS** pass through `sanitizeHtml()` from `client/src/core/utils/sanitize.ts` first
+- `sanitizeHtml()` removes: `script`, `iframe`, `object`, `embed`, `form`, `input`, `button`, `link`, `meta`, `base`, `style` tags; all `on*` event handlers; `javascript:` hrefs; external `<img>` src (tracking pixel protection)
+
 ### File Organization Rules
-- **Source code**: Prefer reading `.ts` files in `client/src/`, NOT compiled `.js` files in `client/js/`
-- **Change documentation**: Must go in `docs/prs/PR-XXX-<description>/` folders, NOT repository root
-- **Tests**: Must accompany all new code in the same PR (see testing requirements)
+- **Source code**: Read `.ts` files in `client/src/`, NOT compiled `.js` files in `client/js/`
+- **Change documentation**: Place in `docs/prs/<description>/` folders, NOT repository root
+- **Tests**: Must accompany all new code in the same PR
+- **Vendored libraries**: Place in `client/vendor/`, never load from CDN
 
 ## Testing Requirements (CRITICAL)
 
 ### Coverage Standards
 - **Minimum 85% overall coverage** for CI to pass
 - **100% coverage required** for security-critical code:
-  - Encryption/decryption
+  - Encryption/decryption (`client/src/core/crypto/`, `client/src/security.ts`)
   - Password handling
   - Authentication
   - Input validation
-  - Security utilities
+  - Security utilities (`client/src/core/utils/sanitize.ts`)
 - **Coverage drops >5%**: NOT acceptable without justification
 
 ### Zero Untested Code Policy
@@ -627,7 +761,7 @@ When tests fail or integrations break:
 4. **DO** understand WHY the API was designed that way
 
 ### Before Changing Any Public API
-- [ ] Search codebase for all usages: `grep -r "functionName"`
+- [ ] Search codebase for all usages
 - [ ] Check how it's called in production code
 - [ ] Verify return types/parameters in real usage
 - [ ] Read comments/docs explaining design decisions
@@ -635,24 +769,19 @@ When tests fail or integrations break:
 
 ### API Contracts in This Codebase
 
-**Example: Password-based encryption returns ArrayBuffers**
+**`encryptWithPassword` returns `ArrayBuffer`s, not strings:**
 ```typescript
-// This returns ArrayBuffer for binary crypto operations
 export async function encryptWithPassword(
   content: string,
   password: string
 ): Promise<{ encryptedData: ArrayBuffer; salt: ArrayBuffer; iv: ArrayBuffer }>
 ```
+The `EncryptionService` converts to base64url after calling this. Tests must work with `ArrayBuffer`.
 
-**Used in production like this:**
+**`Result<T,E>` pattern** — use `success()`, `failure()`, `isFailure()` from `core/models/result.ts`:
 ```typescript
-const { encryptedData, salt, iv } = await encryptWithPassword(text, password);
-const ctB64 = b64u(encryptedData); // Convert to base64 for transport
+if (isFailure(result)) { return failure(result.error.join('. ')); }
 ```
-
-**If tests expect base64 strings:**
-- ❌ BAD: Change API to return base64
-- ✅ GOOD: Fix test to work with ArrayBuffers
 
 ## Security Requirements (Non-Negotiable)
 
@@ -664,6 +793,7 @@ const ctB64 = b64u(encryptedData); // Convert to base64 for transport
 - [ ] Error messages don't leak internal details
 - [ ] Tests cover security-critical paths (100%)
 - [ ] No XSS, SQL injection, or OWASP top 10 vulnerabilities
+- [ ] All `innerHTML` assignments use `sanitizeHtml()` output
 
 ### Logging Rules
 - ✅ Log: request IDs, timestamps, paste IDs, status codes
@@ -697,14 +827,14 @@ try {
 ## API Endpoints
 
 ```
-POST   /api/pastes              # Create paste (requires PoW)
-GET    /api/pastes/:id          # Retrieve paste
-DELETE /api/pastes/:id          # Delete paste (requires token - creator only)
-POST   /api/pastes/:id/delete   # Delete paste (requires password-derived auth)
+GET    /api/health              # Health check (includes DB connectivity)
+GET    /api/pow                 # Get PoW challenge (204 if PoW disabled)
+POST   /api/pastes              # Create paste (requires PoW if enabled)
+GET    /api/pastes/:id          # Retrieve paste (404 if expired/missing)
+DELETE /api/pastes/:id          # Delete paste by token (creator only)
+POST   /api/pastes/:id/delete   # Delete paste by password-derived auth
 POST   /api/pastes/:id/messages # Post encrypted chat message
 GET    /api/pastes/:id/messages # Get all encrypted chat messages
-GET    /api/pow                 # Get PoW challenge
-GET    /health                  # Health check
 ```
 
 ### Request/Response Format
@@ -712,22 +842,22 @@ GET    /health                  # Health check
 **POST /api/pastes:**
 ```json
 {
-  "ct": "base64-ciphertext",
-  "iv": "base64-initialization-vector",
+  "ct": "base64url-ciphertext",
+  "iv": "base64url-initialization-vector",
   "meta": {
     "expireTs": 1234567890,
     "mime": "text/plain",
-    "allowKeyCaching": false
+    "allowChat": true
   },
   "pow": {
     "challenge": "abc123",
     "nonce": 42
   },
-  "deleteAuth": "base64-delete-authorization"
+  "deleteAuth": "base64url-delete-authorization"
 }
 ```
 
-**Response:**
+**Response (201 Created):**
 ```json
 {
   "id": "paste-id",
@@ -738,16 +868,33 @@ GET    /health                  # Health check
 **POST /api/pastes/:id/delete:**
 ```json
 {
-  "deleteAuth": "base64-delete-authorization"
+  "deleteAuth": "base64url-delete-authorization"
+}
+```
+
+**POST /api/pastes/:id/messages:**
+```json
+{
+  "ct": "base64url-encrypted-message",
+  "iv": "base64url-iv"
+}
+```
+
+**GET /api/pastes/:id/messages response:**
+```json
+{
+  "messages": [
+    { "ct": "...", "iv": "...", "timestamp": 1234567890 }
+  ]
 }
 ```
 
 ## Git Workflow & Commits
 
 ### Branches
-- `main` - Production ready
-- `draft/*` - Feature branches for PRs
-- Use descriptive names: `draft/security-ux-bundle`
+- `main` / `master` — Production-ready. **NEVER push here directly.**
+- `draft/*` — Feature branches for PRs. Use descriptive names: `draft/security-ux-bundle`
+- AI-assigned branches follow the pattern: `claude/<description>-<sessionId>`
 
 ### Commit Messages
 Format: `<type>: <description>`
@@ -807,30 +954,34 @@ Every PR created with `gh pr create` MUST include a thorough description. Use th
 
 - [ ] [Specific things to verify manually or via CI]
 - [ ] [Include make/test commands to run]
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
 - **Never leave the description blank or use a one-liner**
 - **Always include a test plan** with concrete verification steps
 - **Group changes by area** (Server, Client, Infrastructure, etc.) when touching multiple parts of the codebase
+- **No AI attribution**: Do NOT include "Generated with Claude", "Made with Cursor", or similar tags in any PR, commit, or doc
 
-### Commit & Push Control
-- **Feature branches allowed**: Commits and pushes to feature branches are permitted
-- **Protect main/master**: If on main or master branch, MUST create a new feature branch before committing
-- **Never push directly to main/master**: Always use feature branches and pull requests
-- **Push after each commit**: AI pushes to remote immediately after each commit
+### Commit & Push Control (MANDATORY)
+
+> Repeat of the critical rule above — this applies to AI assistants unconditionally:
+
+- **NEVER push to `main` or `master`** — not even for small fixes or documentation
+- **ALWAYS create a feature branch** before making any commit: `git checkout -b draft/<description>`
+- **Push only to the feature branch**: `git push -u origin draft/<description>`
+- **Open a PR**: `gh pr create` with full description and test plan
+- **Push after each commit**: Push to the feature branch immediately after committing
 
 ### Workflow
-1. AI makes changes (editing files)
-2. If on main/master, AI creates a new feature branch first
-3. AI commits changes with descriptive commit message
-4. AI pushes to remote immediately after each commit
+1. Check branch: `git branch --show-current`
+2. If on `main`/`master`, create feature branch immediately
+3. Make all changes on the feature branch
+4. Commit with descriptive message
+5. Push to feature branch
+6. Open PR via `gh pr create`
 
 ### GitHub Operations
-- **Use `gh` CLI**: For all GitHub operations (PRs, issues, etc.), use the `gh` command-line tool
+- **Use `gh` CLI**: For all GitHub operations (PRs, issues, etc.)
 - **Do NOT use GitKraken tools**: Always prefer `gh` over GitKraken MCP tools
-- **No AI attribution tags**: Do NOT include any AI/tool attribution in PR descriptions, commits, or docs. This includes but is not limited to: "Made with Cursor", "Generated with Claude", "Powered by [tool]", or similar. Applies to all models and agents.
 - **Common commands**:
   - `gh pr create` - Create pull request
   - `gh pr view` - View PR details
@@ -867,25 +1018,37 @@ make push-multiarch REGISTRY=ghcr.io/username TAG=v1.0.0
 ## Important Patterns & Decisions
 
 ### Fragment-Based Key Storage
-Encryption keys stored in URL fragment (`#salt:iv`) are never sent to server in HTTP requests - browser-native zero-knowledge architecture.
+Encryption keys stored in URL fragment (`#salt:iv`) are never sent to the server in HTTP requests — browser-native zero-knowledge architecture.
 
 ### Password Key Derivation
-PBKDF2 with 100,000 iterations, SHA-256, 16-byte salt. Provides both security and simple UX (single password unlocks paste).
+PBKDF2 with 100,000 iterations, SHA-256, 16-byte salt. Provides both security and simple UX (single password unlocks paste and chat).
 
 ### Proof-of-Work Design
-Client-side SHA-256 puzzle with configurable difficulty. Makes automated spam expensive without requiring user accounts.
+Client-side SHA-256 puzzle with configurable difficulty. Makes automated spam expensive without requiring user accounts. PoW solver yields every 1000 iterations to keep the UI responsive.
 
 ### Token Bucket Rate Limiting
-Per-IP rate limiting: 30 tokens capacity, refills at 30/minute. Fair resource allocation, prevents abuse.
+Per-IP rate limiting: 30 tokens capacity, refills at 30/minute. Separate buckets for paste creation and message posting.
 
 ### Deletion Token Security
-Deletion tokens hashed with SHA-256 + secret pepper (env variable) before storage - prevents rainbow table attacks.
+Deletion tokens hashed with SHA-256 + secret pepper (env variable) before storage — prevents rainbow table attacks.
 
-### Password-Based Deletion
-Anyone who knows the paste password can delete it. Delete authorization is derived from password via PBKDF2 with modified salt (`salt + ":delete"`), cryptographically separate from the encryption key. Stored hashed server-side.
+### Password-Based Deletion + Brute-Force Protection
+Anyone who knows the paste password can delete it. Delete authorization derived from password via PBKDF2 with modified salt (`salt + ":delete"`). `FailedAttemptTracker` blocks a paste ID after 10 failed attempts within 5 minutes.
+
+### Server-Side Data Key Rotation (`DataKeyManager`)
+`deleteAuth` hashes stored in SQLite are additionally encrypted with a server-managed AES-256-GCM key. `DataKeyManager` manages a keyring stored on disk, rotates keys on a configurable schedule, and supports decryption with any historical key. This is defense-in-depth on the server side — user content remains zero-knowledge.
+
+### Delete Token Storage
+Delete tokens are stored in `sessionStorage` (not `localStorage`) so they expire when the browser tab closes. Legacy tokens in `localStorage` are migrated on read and removed.
+
+### Vendored Libraries
+`marked.js` and `highlight.js` are vendored in `client/vendor/` to eliminate CDN dependencies, ensure offline functionality, and comply with the zero-external-resources policy.
+
+### Markdown Safety Pipeline
+All markdown-rendered content goes through: `marked.parse()` → `sanitizeHtml()` → `innerHTML`. `sanitizeHtml()` strips dangerous tags/attrs and removes external `<img>` tags to prevent tracking pixels.
 
 ### Paste Lifecycle
-Pastes can be deleted by: time-based expiration (automatic cleanup), creator delete token, or password-based deletion by anyone with the password.
+Pastes can be deleted by: time-based expiration (hourly cleanup), creator delete token, or password-based deletion by anyone with the password. All cascade-delete associated chat messages.
 
 ## Documentation
 
@@ -893,52 +1056,58 @@ Pastes can be deleted by: time-based expiration (automatic cleanup), creator del
 - **Setup**: `docs/getting-started/SETUP.md`
 - **Deployment**: `docs/deployment/DEPLOYMENT.md`
 - **Architecture**: `docs/architecture/C4-DIAGRAMS.md`
+- **Proof-of-Work**: `docs/architecture/PROOF_OF_WORK.md`
 - **Testing**: `client/tests/README.md`
-- **PRs**: `docs/prs/README.md`
 - **Security**: `docs/security/CHECKLIST.md`
 - **Anonymous Chat**: `docs/features/ANONYMOUS-CHAT.md`
+- **Bazel**: `docs/development/BAZEL_QUICKSTART.md`
 
 ### Documentation Organization
-- **Change docs** (fix summaries, migration notes, etc.): Place in `docs/prs/PR-XXX-<description>/`
+- **Change docs** (fix summaries, migration notes, etc.): Place in `docs/prs/<description>/`
 - **NOT in repository root**: Keep root clean
-- **PR-specific documentation**: Use descriptive folder names
+- **PR-specific docs**: Use descriptive folder names
 
 ## Common Pitfalls to Avoid
 
 1. **Sending keys to server**: Keys must ONLY exist in URL fragment
-2. **Changing API contracts**: Investigate and fix tests, not APIs
-3. **Submitting untested code**: All new code requires tests
-4. **Decreasing coverage >5%**: Add tests to maintain coverage
-5. **Pushing without CI verification**: Run `make ci-check` first
-6. **Auto-committing changes**: Always require explicit developer approval
-7. **Large PRs**: Break into smaller, focused PRs (100-300 lines)
-8. **Logging sensitive data**: Never log keys, passwords, or plaintext
-9. **Using `any` in TypeScript**: Use explicit types
-10. **Reading compiled `.js` files**: Read source `.ts` files instead
-11. **Duplicate HTML IDs across pages**: Use unique IDs across all HTML files to avoid browser warnings
+2. **Pushing to main/master**: ALWAYS use a feature branch and PR
+3. **Using `innerHTML` without sanitizeHtml()**: Always sanitize markdown output first
+4. **Loading external resources**: Use vendored libs in `client/vendor/`, never CDN links
+5. **Changing API contracts**: Investigate and fix tests/consumers, not the API
+6. **Submitting untested code**: All new code requires tests in the same PR
+7. **Decreasing coverage >5%**: Add tests to maintain coverage
+8. **Pushing without CI verification**: Run `make ci-check` first
+9. **Large PRs**: Break into smaller, focused PRs (100-300 lines)
+10. **Logging sensitive data**: Never log keys, passwords, or plaintext
+11. **Using `any` in TypeScript**: Use explicit types
+12. **Reading compiled `.js` files**: Read source `.ts` files instead
+13. **Duplicate HTML IDs across pages**: Use unique IDs across all HTML files
+14. **AI attribution in PRs/commits**: No "Generated with Claude" or similar tags
 
 ## Performance Considerations
 
 ### Client
-- Use native Web Crypto API (fast, no dependencies)
-- Minimize bundle size
-- Lazy load when possible
+- Use native Web Crypto API (fast, no JS crypto dependencies)
+- All third-party libs vendored locally (no network round-trip)
 - PoW solver yields every 1000 iterations to prevent UI blocking
+- Chat auto-polls every 30 seconds (not continuous)
 
 ### Server
 - Connection pooling enabled (HikariCP)
 - Rate limiting prevents abuse
-- Efficient database queries
+- Efficient database queries with indexed paste IDs
 - Response compression enabled
 - Hourly cleanup of expired pastes
 
 ## Remember
 
 1. **Zero-Knowledge**: If you're sending a key to the server, you're doing it wrong
-2. **Test Everything**: No code without tests (same PR)
-3. **Type Safety**: Explicit types prevent bugs
-4. **Security First**: When in doubt, be more secure
-5. **API Contracts**: Never break existing contracts without investigation
-6. **Coverage Matters**: Maintain 85% minimum, critical code at 100%
-7. **CI Before PR**: Run full CI checks locally before pushing
-8. **Small PRs**: Focused, reviewable, atomic changes
+2. **Never Push to Main**: Always feature branch → PR → review
+3. **Test Everything**: No code without tests (same PR)
+4. **Sanitize Before innerHTML**: Always use `sanitizeHtml()` for markdown/user content
+5. **Type Safety**: Explicit types prevent bugs — no `any`
+6. **Security First**: When in doubt, be more secure
+7. **API Contracts**: Never break existing contracts without investigation
+8. **Coverage Matters**: Maintain 85% minimum, critical code at 100%
+9. **CI Before PR**: Run full CI checks locally before pushing
+10. **Small PRs**: Focused, reviewable, atomic changes
