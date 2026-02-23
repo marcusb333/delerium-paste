@@ -60,11 +60,13 @@ Share URL: domain.com/view?p=ID#salt:iv  (key stays client-side)
 
 **Mandatory workflow for every change:**
 1. Check current branch: `git branch --show-current`
-2. If on `main` or `master`, create a feature branch immediately: `git checkout -b draft/<description>`
-3. Make ALL changes on the feature branch (including version bumps)
+2. **If on `main` or `master`, create a feature branch IMMEDIATELY before touching any file:** `git checkout -b draft/<description>`
+3. Make ALL changes on the feature branch (including version bumps, CLAUDE.md edits, config changes)
 4. Push only to the feature branch
 5. Open a PR via `gh pr create` — never merge directly
 6. After PR is merged: create and push the git tag, then push to Docker Hub, then create GitHub release
+
+> **AI assistants MUST create a branch before any implementation work — including trivial one-line changes.**
 
 **Tags must never be pushed before the corresponding commit lands in main via a merged PR.**
 This protects the production branch and ensures all changes are reviewed.
