@@ -6,9 +6,58 @@ const { webcrypto } = nodeCrypto;
 
 // Use Node.js Web Crypto API implementation (Node 15.10.0+)
 if (webcrypto && webcrypto.subtle) {
+  // jest-environment-jsdom runs code in a separate V8 vm context, so TypedArrays
+  // and ArrayBuffers created in tests are "cross-realm" objects. Node.js 20's native
+  // webcrypto.subtle rejects cross-realm ArrayBuffers with "not instance of ArrayBuffer".
+  // Fix: wrap subtle so every buffer argument is copied into a main-realm Buffer first.
+
+  function toNativeBuffer(x: unknown): unknown {
+    if (x == null || typeof x !== 'object') return x;
+    if (Buffer.isBuffer(x)) return x;
+    // TypedArray (Uint8Array etc.) or DataView — copy contents into a main-realm Buffer
+    if (ArrayBuffer.isView(x)) {
+      const v = x as ArrayBufferView;
+      return Buffer.from(v.buffer as ArrayBuffer, v.byteOffset, v.byteLength);
+    }
+    // ArrayBuffer (possibly cross-realm: instanceof fails but byteLength/slice present)
+    const obj = x as Record<string, unknown>;
+    if (typeof obj.byteLength === 'number' && typeof obj.slice === 'function') {
+      return Buffer.from(new Uint8Array(x as ArrayBuffer));
+    }
+    return x;
+  }
+
+  // Normalize buffer-valued properties inside algorithm objects (e.g. iv, salt)
+  function normalizeAlg(alg: unknown): unknown {
+    if (alg == null || typeof alg !== 'object' || ArrayBuffer.isView(alg)) return alg;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(alg as Record<string, unknown>)) {
+      out[k] = (v != null && typeof v === 'object') ? toNativeBuffer(v) : v;
+    }
+    return out;
+  }
+
+  // Proxy that normalizes all buffer-like args before handing them to native webcrypto
+  const wrappedSubtle = new Proxy(webcrypto.subtle as unknown as Record<string, unknown>, {
+    get(target, prop: string) {
+      const val = target[prop];
+      if (typeof val !== 'function') return val;
+      return (...args: unknown[]) =>
+        (val as Function).apply(
+          target,
+          args.map((arg, i) =>
+            // First arg is usually an algorithm object — normalize its buffer properties
+            i === 0 && arg != null && typeof arg === 'object' && !ArrayBuffer.isView(arg)
+              ? normalizeAlg(arg)
+              : toNativeBuffer(arg)
+          )
+        );
+    },
+  });
+
   // Ensure crypto is available on both global and globalThis
   const cryptoImpl = {
-    subtle: webcrypto.subtle,
+    subtle: wrappedSubtle,
     getRandomValues: (arr: Uint8Array) => {
       return nodeCrypto.randomFillSync(arr);
     },
