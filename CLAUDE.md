@@ -46,23 +46,27 @@ Share URL: domain.com/view?p=ID#salt:iv  (key stays client-side)
 
 > **This is the single most important rule for AI assistants working in this repo.**
 
-**NEVER push to `main` or `master`.** Always work on a feature branch and open a Pull Request.
+**NEVER push to `main` or `master` — not commits, not tags, not anything.** Always work on a feature branch and open a Pull Request.
 
 ```
 ❌ BAD:  git push origin main
 ❌ BAD:  git push origin master
+❌ BAD:  git push origin v1.x.x          ← tags must ONLY be pushed after PR is merged
 ✅ GOOD: git checkout -b draft/my-feature
 ✅ GOOD: git push -u origin draft/my-feature
 ✅ GOOD: gh pr create ...
+✅ GOOD: git tag vX.Y.Z && git push origin vX.Y.Z   ← ONLY after PR is merged to main
 ```
 
 **Mandatory workflow for every change:**
 1. Check current branch: `git branch --show-current`
 2. If on `main` or `master`, create a feature branch immediately: `git checkout -b draft/<description>`
-3. Make all changes on the feature branch
+3. Make ALL changes on the feature branch (including version bumps)
 4. Push only to the feature branch
 5. Open a PR via `gh pr create` — never merge directly
+6. After PR is merged: create and push the git tag, then push to Docker Hub, then create GitHub release
 
+**Tags must never be pushed before the corresponding commit lands in main via a merged PR.**
 This protects the production branch and ensures all changes are reviewed.
 
 ---
@@ -1070,19 +1074,20 @@ Pastes can be deleted by: time-based expiration (hourly cleanup), creator delete
 ## Common Pitfalls to Avoid
 
 1. **Sending keys to server**: Keys must ONLY exist in URL fragment
-2. **Pushing to main/master**: ALWAYS use a feature branch and PR
-3. **Using `innerHTML` without sanitizeHtml()**: Always sanitize markdown output first
-4. **Loading external resources**: Use vendored libs in `client/vendor/`, never CDN links
-5. **Changing API contracts**: Investigate and fix tests/consumers, not the API
-6. **Submitting untested code**: All new code requires tests in the same PR
-7. **Decreasing coverage >5%**: Add tests to maintain coverage
-8. **Pushing without CI verification**: Run `make ci-check` first
-9. **Large PRs**: Break into smaller, focused PRs (100-300 lines)
-10. **Logging sensitive data**: Never log keys, passwords, or plaintext
-11. **Using `any` in TypeScript**: Use explicit types
-12. **Reading compiled `.js` files**: Read source `.ts` files instead
-13. **Duplicate HTML IDs across pages**: Use unique IDs across all HTML files
-14. **AI attribution in PRs/commits**: No "Generated with Claude" or similar tags
+2. **Pushing to main/master**: ALWAYS use a feature branch and PR — this includes version bumps, tags, and release prep
+3. **Pushing tags before PR is merged**: Create and push git tags ONLY after the commit lands in main via a merged PR
+4. **Using `innerHTML` without sanitizeHtml()**: Always sanitize markdown output first
+5. **Loading external resources**: Use vendored libs in `client/vendor/`, never CDN links
+6. **Changing API contracts**: Investigate and fix tests/consumers, not the API
+7. **Submitting untested code**: All new code requires tests in the same PR
+8. **Decreasing coverage >5%**: Add tests to maintain coverage
+9. **Pushing without CI verification**: Run `make ci-check` first
+10. **Large PRs**: Break into smaller, focused PRs (100-300 lines)
+11. **Logging sensitive data**: Never log keys, passwords, or plaintext
+12. **Using `any` in TypeScript**: Use explicit types
+13. **Reading compiled `.js` files**: Read source `.ts` files instead
+14. **Duplicate HTML IDs across pages**: Use unique IDs across all HTML files
+15. **AI attribution in PRs/commits**: No "Generated with Claude" or similar tags
 
 ## Performance Considerations
 
