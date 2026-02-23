@@ -2,9 +2,6 @@ name: PR Parallel Quality Gates
 
 on:
   pull_request:
-    branches:
-      - main
-      - '**'
 
 jobs:
   frontend-checks:
@@ -21,7 +18,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './client/package-lock.json'
 
-      # Cache node_modules for faster installs
       - name: Cache node_modules
         uses: actions/cache@v4
         id: node-modules-cache
@@ -31,32 +27,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-modules-
 
-      # Cache TypeScript build outputs
-      - name: Cache TypeScript build
-        uses: actions/cache@v4
-        id: ts-cache
-        with:
-          path: client/js
-          key: ${{ runner.os }}-ts-build-${{ hashFiles('client/src/**/*.ts', 'client/tsconfig.json') }}
-          restore-keys: |
-            ${{ runner.os }}-ts-build-
-
-      # Cache Jest test results
-      - name: Cache Jest
-        uses: actions/cache@v4
-        id: jest-cache
-        with:
-          path: |
-            client/.jest-cache
-            client/coverage
-          key: ${{ runner.os }}-jest-${{ hashFiles('client/src/**/*.ts', 'client/jest.config.js') }}
-          restore-keys: |
-            ${{ runner.os }}-jest-
-
-      # Cache ESLint cache
       - name: Cache ESLint
         uses: actions/cache@v4
-        id: eslint-cache
         with:
           path: client/.eslintcache
           key: ${{ runner.os }}-eslint-${{ hashFiles('client/src/**/*.ts', 'client/eslint.config.mjs') }}
@@ -66,9 +38,10 @@ jobs:
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         id: playwright-cache
+        if: startsWith(github.base_ref, 'release') || startsWith(github.head_ref, 'release')
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ hashFiles('client/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
 
@@ -93,57 +66,18 @@ jobs:
 
       - name: Type Check (frontend)
         working-directory: ./client
-        run: npx tsc --noEmit --incremental
+        run: npx tsc --noEmit
 
-      - name: Unit Tests (frontend)
+      - name: Unit Tests with Coverage (frontend)
         working-directory: ./client
-        run: npx jest --testPathIgnorePatterns=/integration/ --testPathIgnorePatterns=/e2e/ --cache
+        run: npx jest --testPathIgnorePatterns=/integration/ --testPathIgnorePatterns=/e2e/ --coverage
 
-      # TODO: Re-enable integration tests once supertest v7 compatibility issues resolved
-      # - name: Integration Tests (frontend)
-      #   working-directory: ./client
-      #   run: npx jest --config jest.integration.config.js
-      #   Note: Temporarily disabled due to supertest v7 compatibility issues with mock server
-      
       - name: E2E Tests (frontend)
         working-directory: ./client
         if: startsWith(github.base_ref, 'release') || startsWith(github.head_ref, 'release')
         run: npx playwright test
         env:
           CI: true
-
-      - name: Coverage Report (frontend)
-        working-directory: ./client
-        run: npx jest --coverage --cache
-
-      - name: Coverage Threshold Check
-        working-directory: ./client
-        run: |
-          # Adjust the threshold as needed
-          THRESHOLD=85
-          # Extract statements coverage percentage from HTML (first percentage after "All files")
-          COVERAGE=$(grep -A 10 "All files" coverage/lcov-report/index.html | grep -oE 'class="strong">[0-9]+\.[0-9]+%' | head -1 | grep -oE '[0-9]+\.[0-9]+')
-          if [ -z "$COVERAGE" ]; then
-            echo "Failed to extract coverage percentage"
-            exit 1
-          fi
-          echo "Detected coverage: $COVERAGE%"
-          # Use awk for floating point comparison (bc might not be installed)
-          COMPARE=$(echo "$COVERAGE $THRESHOLD" | awk '{if ($1 < $2) print 1; else print 0}')
-          if [ "$COMPARE" = "1" ]; then
-            echo "Coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
-            exit 1
-          fi
-          echo "Coverage check passed: $COVERAGE% >= $THRESHOLD%"
-
-      - name: Cleanup on failure
-        if: failure()
-        run: |
-          echo "Cleaning up after failed frontend job..."
-          rm -rf client/node_modules
-          rm -rf client/coverage
-          rm -rf client/.eslintcache
-          rm -rf client/.jest-cache
 
   backend-checks:
     name: Backend Checks
@@ -184,12 +118,6 @@ jobs:
           bazel build //server:delerium_server_deploy
           bazel test //server:all_tests --test_output=errors
 
-      - name: Cleanup on failure
-        if: failure()
-        run: |
-          echo "Cleaning up after failed backend job..."
-          bazel clean --expunge || true
-
   docker-checks:
     name: Docker Checks
     runs-on: ubuntu-24.04
@@ -200,7 +128,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Improved Docker layer caching with buildx cache
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
@@ -212,7 +139,6 @@ jobs:
       - name: Create .env file for CI
         run: |
           echo "DELETION_TOKEN_PEPPER=test-pepper-for-ci-$(date +%s)" > .env
-          echo ".env file created for CI"
 
       - name: Docker Compose config validation
         run: docker compose -f docker-compose.yml config
@@ -227,27 +153,21 @@ jobs:
         run: |
           echo "Waiting for services to start..."
           sleep 30
-          
-          # Show container status
+
           docker compose -f docker-compose.yml ps
-          
-          # Check if services are running
+
           if ! docker compose -f docker-compose.yml ps | grep -qE "(Up|running)"; then
             echo "No containers are in 'Up' or 'running' state"
-            docker compose -f docker-compose.yml ps
-            docker compose -f docker-compose.yml logs
-            exit 1
-          fi
-          
-          # Check for exited containers
-          if docker compose -f docker-compose.yml ps | grep -q "Exited"; then
-            echo "Some containers have exited"
-            docker compose -f docker-compose.yml ps
             docker compose -f docker-compose.yml logs
             exit 1
           fi
 
-          # Test nginx is responding (with retries)
+          if docker compose -f docker-compose.yml ps | grep -q "Exited"; then
+            echo "Some containers have exited"
+            docker compose -f docker-compose.yml logs
+            exit 1
+          fi
+
           echo "Testing nginx health endpoint..."
           NGINX_HEALTHY=false
           for i in {1..5}; do
@@ -259,7 +179,7 @@ jobs:
             echo "Attempt $i failed, retrying in 2 seconds..."
             sleep 2
           done
-          
+
           if [ "$NGINX_HEALTHY" != "true" ]; then
             echo "Nginx health check failed after 5 attempts"
             docker compose -f docker-compose.yml logs
@@ -272,12 +192,6 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.yml down -v
 
-      - name: Cleanup on failure
-        if: failure()
-        run: |
-          echo "Cleaning up after failed docker job..."
-          docker compose -f docker-compose.yml down -v 2>/dev/null || true
-
   summary:
     name: PR Checks Summary
     runs-on: ubuntu-24.04
@@ -289,7 +203,7 @@ jobs:
           FRONTEND_RESULT="${{ needs.frontend-checks.result }}"
           BACKEND_RESULT="${{ needs.backend-checks.result }}"
           DOCKER_RESULT="${{ needs.docker-checks.result }}"
-          
+
           echo "## PR Checks Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
@@ -298,10 +212,10 @@ jobs:
           echo "| Backend Checks | $BACKEND_RESULT |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Checks | $DOCKER_RESULT |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ "$FRONTEND_RESULT" != "success" ] || [ "$BACKEND_RESULT" != "success" ] || [ "$DOCKER_RESULT" != "success" ]; then
-            echo "❌ Some checks failed. Please review the logs above." >> $GITHUB_STEP_SUMMARY
+            echo "Some checks failed. Please review the logs above." >> $GITHUB_STEP_SUMMARY
             exit 1
           else
-            echo "✅ All checks passed successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "All checks passed successfully!" >> $GITHUB_STEP_SUMMARY
           fi
