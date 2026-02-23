@@ -6,8 +6,29 @@
 
 import { deriveKeyFromPassword, generateSalt } from '../../../src/security.js';
 import { encodeBase64Url, decodeBase64Url } from '../../../src/core/crypto/encoding.js';
-import { setupPasteChat, escapeHtml, generateRandomUsername, encryptMessageWithKey } from '../../../src/features/paste-chat.js';
+import { escapeHtml, generateRandomUsername, ChatView } from '../../../src/presentation/components/chat-view.js';
+import { ChatUseCase } from '../../../src/application/use-cases/chat-use-case.js';
+import { EncryptionService } from '../../../src/core/services/encryption-service.js';
 import { showPasswordModal } from '../../../src/presentation/components/password-modal.js';
+
+const encryptionService = new EncryptionService();
+const chatUseCase = new ChatUseCase(encryptionService);
+
+function createChatView(): ChatView {
+  return new ChatView(chatUseCase);
+}
+
+function setupPasteChat(pasteId: string, salt: Uint8Array, initialPassword?: string): void {
+  createChatView().setup(pasteId, salt, initialPassword);
+}
+
+async function encryptMessageWithKey(
+  message: string,
+  key: CryptoKey,
+  username?: string
+): Promise<{ encryptedData: ArrayBuffer; iv: ArrayBuffer }> {
+  return encryptionService.encryptChatMessage(message, key, username);
+}
 
 jest.mock('../../../src/presentation/components/password-modal.js', () => ({
   showPasswordModal: jest.fn(),

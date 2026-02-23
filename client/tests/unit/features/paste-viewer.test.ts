@@ -9,7 +9,23 @@
  */
 
 import { deriveDeleteAuth, secureClear } from '../../../src/security.js';
-import { shouldInitChat } from '../../../src/features/paste-viewer.js';
+import { PasteViewerView } from '../../../src/presentation/components/paste-viewer-view.js';
+import { ViewPasteUseCase } from '../../../src/application/use-cases/view-paste-use-case.js';
+import { DeletePasteUseCase } from '../../../src/application/use-cases/delete-paste-use-case.js';
+import { EncryptionService } from '../../../src/core/services/encryption-service.js';
+import { HttpApiClient } from '../../../src/infrastructure/api/http-client.js';
+import type { PasteMetadata } from '../../../src/core/models/paste.js';
+
+const apiClient = new HttpApiClient();
+const encryptionService = new EncryptionService();
+const viewerView = new PasteViewerView(
+  new ViewPasteUseCase(apiClient, encryptionService),
+  new DeletePasteUseCase(apiClient)
+);
+
+function shouldInitChat(meta: PasteMetadata): boolean {
+  return viewerView.shouldInitChat(meta);
+}
 
 describe('paste-viewer deleteAuth derivation', () => {
   /**

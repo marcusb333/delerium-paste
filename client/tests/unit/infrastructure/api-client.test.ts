@@ -7,7 +7,7 @@
 
 import { HttpApiClient } from '../../../src/infrastructure/api/http-client.js';
 import { MockApiClient } from '../../../src/infrastructure/api/mock-client.js';
-import type { PasteCreateRequest } from '../../../src/infrastructure/api/interfaces.js';
+import type { CreatePasteRequest } from '../../../src/infrastructure/api/interfaces.js';
 
 // Mock fetch for HttpApiClient tests
 global.fetch = jest.fn();
@@ -22,7 +22,7 @@ describe('HttpApiClient', () => {
 
   describe('createPaste', () => {
     it('should create a paste successfully', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -52,7 +52,7 @@ describe('HttpApiClient', () => {
     });
 
     it('should handle server errors', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -72,7 +72,7 @@ describe('HttpApiClient', () => {
     });
 
     it('should handle network errors', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -87,7 +87,7 @@ describe('HttpApiClient', () => {
     });
 
     it('should extract error from plain-text body when JSON parse fails', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'ct',
         iv: 'iv',
         meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
@@ -105,7 +105,7 @@ describe('HttpApiClient', () => {
     });
 
     it('should use status text when both JSON and text body are empty', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'ct',
         iv: 'iv',
         meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
@@ -324,7 +324,7 @@ describe('MockApiClient', () => {
 
   describe('createPaste', () => {
     it('should create and store a paste', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -341,7 +341,7 @@ describe('MockApiClient', () => {
     });
 
     it('should generate unique IDs', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -360,7 +360,7 @@ describe('MockApiClient', () => {
 
   describe('retrievePaste', () => {
     it('should retrieve a stored paste', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -384,7 +384,7 @@ describe('MockApiClient', () => {
 
   describe('deletePaste', () => {
     it('should delete a paste with valid token', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -402,7 +402,7 @@ describe('MockApiClient', () => {
     });
 
     it('should throw error with invalid token', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
@@ -448,7 +448,7 @@ describe('MockApiClient', () => {
 
   describe('clear', () => {
     it('should clear all pastes', async () => {
-      const request: PasteCreateRequest = {
+      const request: CreatePasteRequest = {
         ct: 'encrypted-content',
         iv: 'initialization-vector',
         meta: {
