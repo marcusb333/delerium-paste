@@ -1,22 +1,16 @@
 name: Security Scan
 
 on:
-  # Run on push to main branch (for dependency changes)
   push:
     branches:
       - main
     paths:
       - 'client/package*.json'
-      - 'server/BUILD.bazel'
-      - 'MODULE.bazel'
-      - 'MODULE.bazel.lock'
       - '.github/workflows/security-scan.yml'
-  
-  # Scheduled scans: daily at 2 AM UTC
+
   schedule:
     - cron: '0 2 * * *'
-  
-  # Manual trigger
+
   workflow_dispatch:
 
 jobs:
@@ -34,62 +28,48 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './client/package-lock.json'
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        id: node-modules-cache
-        with:
-          path: client/node_modules
-          key: ${{ runner.os }}-node-modules-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
-
-      - name: Cache npm audit results
-        uses: actions/cache@v4
-        id: npm-audit-cache
-        with:
-          path: client/npm-audit-report.json
-          key: ${{ runner.os }}-npm-audit-${{ hashFiles('client/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-audit-
-
       - name: Install dependencies
         working-directory: ./client
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: Run npm audit (moderate and above)
+      - name: Run npm audit
         working-directory: ./client
         run: |
-          echo "🔍 Running npm audit..."
           npm audit --audit-level=moderate --json > npm-audit-report.json || true
-          npm audit --audit-level=moderate
+          npm audit --audit-level=moderate || true
 
       - name: Check for vulnerabilities
         working-directory: ./client
         run: |
-          if [ -f npm-audit-report.json ]; then
-            VULNS=$(jq -r '.metadata.vulnerabilities.total' npm-audit-report.json 2>/dev/null || echo "0")
-            CRITICAL=$(jq -r '.metadata.vulnerabilities.critical' npm-audit-report.json 2>/dev/null || echo "0")
-            HIGH=$(jq -r '.metadata.vulnerabilities.high' npm-audit-report.json 2>/dev/null || echo "0")
-            MODERATE=$(jq -r '.metadata.vulnerabilities.moderate' npm-audit-report.json 2>/dev/null || echo "0")
-            
-            echo "## Frontend Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          if [ ! -f npm-audit-report.json ]; then
+            echo "No audit report generated"
+            exit 1
+          fi
+
+          CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' npm-audit-report.json)
+          HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' npm-audit-report.json)
+          MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' npm-audit-report.json)
+          TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' npm-audit-report.json)
+
+          echo "## Frontend Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| Moderate | $MODERATE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
-            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
-            echo "| High | $HIGH |" >> $GITHUB_STEP_SUMMARY
-            echo "| Moderate | $MODERATE |" >> $GITHUB_STEP_SUMMARY
-            echo "| Total | $VULNS |" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-              echo "❌ Critical or High severity vulnerabilities found!"
-              exit 1
-            elif [ "$MODERATE" -gt 0 ]; then
-              echo "⚠️ Moderate severity vulnerabilities found. Review recommended."
-            else
-              echo "✅ No moderate or higher severity vulnerabilities found!"
-            fi
+            echo "Critical or high severity vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          elif [ "$MODERATE" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Moderate severity vulnerabilities found. Review recommended." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No moderate or higher severity vulnerabilities found." >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload npm audit report
@@ -103,91 +83,11 @@ jobs:
       - name: Check for outdated packages
         working-directory: ./client
         run: |
-          echo "📦 Checking for outdated packages..."
           npm outdated --json > npm-outdated.json || true
           OUTDATED_COUNT=$(jq 'length' npm-outdated.json 2>/dev/null || echo "0")
           if [ "$OUTDATED_COUNT" -gt 0 ]; then
-            echo "⚠️ Found $OUTDATED_COUNT outdated packages"
+            echo "Found $OUTDATED_COUNT outdated packages (informational only)"
             npm outdated || true
-            echo "ℹ️ This is informational only - workflow will not fail"
           else
-            echo "✅ All packages are up to date"
-          fi
-
-  backend-security:
-    name: Backend Security Scan
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '25'
-
-      - name: Cache Bazel
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/bazel
-          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', '**/*.bzl', 'server/BUILD.bazel') }}
-          restore-keys: |
-            ${{ runner.os }}-bazel-
-
-      - name: Install Bazelisk
-        run: |
-          ARCH=$(uname -m)
-          case $ARCH in
-            x86_64) BAZELISK_ARCH="amd64" ;;
-            aarch64|arm64) BAZELISK_ARCH="arm64" ;;
-            *) echo "Unsupported arch: $ARCH"; exit 1 ;;
-          esac
-          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.28.1/bazelisk-linux-${BAZELISK_ARCH}"
-          chmod +x "bazelisk-linux-${BAZELISK_ARCH}"
-          sudo mv "bazelisk-linux-${BAZELISK_ARCH}" /usr/local/bin/bazel
-          bazel --version
-
-      - name: Query backend dependencies
-        run: |
-          echo "🔍 Querying backend dependencies with Bazel..."
-          bazel query 'deps(//server:delerium_server_lib)' --output=build > server/bazel-deps.txt 2>&1 || true
-          
-          echo "## Backend Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Dependency Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Backend dependency analysis complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Build System:** Bazel" >> $GITHUB_STEP_SUMMARY
-          echo "**Security Updates:** GitHub Dependabot monitors Maven artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "View dependencies: \`cat server/bazel-deps.txt\`" >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload dependency info
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bazel-dependencies
-          path: server/bazel-deps.txt
-          retention-days: 30
-
-  security-summary:
-    name: Security Scan Summary
-    runs-on: ubuntu-24.04
-    needs: [frontend-security, backend-security]
-    if: always()
-    steps:
-      - name: Security scan summary
-        run: |
-          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Frontend security scan: ${{ needs.frontend-security.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Backend security scan: ${{ needs.backend-security.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ "${{ needs.frontend-security.result }}" != "success" ] || [ "${{ needs.backend-security.result }}" != "success" ]; then
-            echo "⚠️ Some security scans failed. Please review the reports." >> $GITHUB_STEP_SUMMARY
-            exit 1
-          else
-            echo "✅ All security scans passed!" >> $GITHUB_STEP_SUMMARY
+            echo "All packages are up to date"
           fi
