@@ -52,8 +52,8 @@ const creatorView = new PasteCreatorView(createPasteUseCase);
 const viewerView = new PasteViewerView(viewPasteUseCase, deletePasteUseCase);
 const chatView = new ChatView(chatUseCase);
 
-function shouldInitChat(_meta: PasteMetadata): boolean {
-  return viewerView.shouldInitChat(_meta);
+function shouldInitChat(meta: PasteMetadata): boolean {
+  return viewerView.shouldInitChat(meta);
 }
 
 async function viewPaste(): Promise<void> {
