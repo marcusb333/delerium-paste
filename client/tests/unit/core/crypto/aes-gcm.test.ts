@@ -192,3 +192,86 @@ describe('Encryption Functions', () => {
     });
   });
 });
+
+// ============================================================================
+// Password-Based Encryption (real Web Crypto)
+// ============================================================================
+// These tests use the REAL webcrypto subtle (restored by the outer afterEach),
+// so they are placed in a separate describe with their own setup that bypasses
+// the top-level mock.
+
+describe('AesGcmCryptoProvider — password-based encryption (real crypto)', () => {
+  // Restore real subtle for these tests
+  beforeEach(() => {
+    if (originalGenerateKey != null) (global.crypto.subtle as any).generateKey = originalGenerateKey;
+    if (originalImportKey != null) (global.crypto.subtle as any).importKey = originalImportKey;
+    if (originalExportKey != null) (global.crypto.subtle as any).exportKey = originalExportKey;
+    if (originalEncrypt != null) (global.crypto.subtle as any).encrypt = originalEncrypt;
+    if (originalDecrypt != null) (global.crypto.subtle as any).decrypt = originalDecrypt;
+  });
+
+  it('should encrypt and decrypt a string using password', async () => {
+    const provider = new AesGcmCryptoProvider();
+    const plaintext = 'Hello, secret world!';
+    const password = 'test-password-123';
+
+    const encrypted = await provider.encryptWithPassword(plaintext, password);
+
+    expect(encrypted.ciphertext).toBeTruthy();
+    expect(encrypted.key).toBeTruthy(); // salt stored as key
+    expect(encrypted.iv).toBeTruthy();
+    expect(encrypted.algorithm).toBe('AES-GCM-PBKDF2');
+
+    const decrypted = await provider.decryptWithPassword(
+      { key: encrypted.key, iv: encrypted.iv, ciphertext: encrypted.ciphertext },
+      password
+    );
+
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it('should produce different ciphertext each time due to random salt and IV', async () => {
+    const provider = new AesGcmCryptoProvider();
+    const plaintext = 'same content';
+    const password = 'same-password';
+
+    const enc1 = await provider.encryptWithPassword(plaintext, password);
+    const enc2 = await provider.encryptWithPassword(plaintext, password);
+
+    expect(enc1.ciphertext).not.toBe(enc2.ciphertext);
+    expect(enc1.iv).not.toBe(enc2.iv);
+  });
+
+  it('should fail to decrypt with wrong password', async () => {
+    const provider = new AesGcmCryptoProvider();
+    const encrypted = await provider.encryptWithPassword('secret', 'correct-password');
+
+    await expect(
+      provider.decryptWithPassword(
+        { key: encrypted.key, iv: encrypted.iv, ciphertext: encrypted.ciphertext },
+        'wrong-password'
+      )
+    ).rejects.toThrow();
+  });
+
+  it('should encrypt empty string successfully', async () => {
+    const provider = new AesGcmCryptoProvider();
+    const encrypted = await provider.encryptWithPassword('', 'pass');
+    const decrypted = await provider.decryptWithPassword(
+      { key: encrypted.key, iv: encrypted.iv, ciphertext: encrypted.ciphertext },
+      'pass'
+    );
+    expect(decrypted).toBe('');
+  });
+
+  it('should round-trip unicode and emoji content', async () => {
+    const provider = new AesGcmCryptoProvider();
+    const plaintext = 'Hello 🌍 emoji and Unicode: 你好世界';
+    const encrypted = await provider.encryptWithPassword(plaintext, 'unicode-pass');
+    const decrypted = await provider.decryptWithPassword(
+      { key: encrypted.key, iv: encrypted.iv, ciphertext: encrypted.ciphertext },
+      'unicode-pass'
+    );
+    expect(decrypted).toBe(plaintext);
+  });
+});

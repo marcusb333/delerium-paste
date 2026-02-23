@@ -85,6 +85,42 @@ describe('HttpApiClient', () => {
 
       await expect(client.createPaste(request)).rejects.toThrow('Network error');
     });
+
+    it('should extract error from plain-text body when JSON parse fails', async () => {
+      const request: PasteCreateRequest = {
+        ct: 'ct',
+        iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+        text: jest.fn().mockResolvedValue('Payload too large')
+      });
+
+      await expect(client.createPaste(request)).rejects.toThrow('Payload too large');
+    });
+
+    it('should use status text when both JSON and text body are empty', async () => {
+      const request: PasteCreateRequest = {
+        ct: 'ct',
+        iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 413,
+        statusText: 'Request Entity Too Large',
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+        text: jest.fn().mockResolvedValue('')
+      });
+
+      await expect(client.createPaste(request)).rejects.toThrow('HTTP 413');
+    });
   });
 
   describe('retrievePaste', () => {
@@ -128,6 +164,49 @@ describe('HttpApiClient', () => {
       });
 
       await expect(client.retrievePaste('expired')).rejects.toThrow('expired');
+    });
+
+    it('should handle 429 rate limit', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 429
+      });
+
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('Too many requests');
+    });
+
+    it('should include server error detail when response body has error field', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: jest.fn().mockResolvedValue({ error: 'Service unavailable' })
+      });
+
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('Service unavailable');
+    });
+
+    it('should use generic message when server error has no detail', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: jest.fn().mockRejectedValue(new Error('not json'))
+      });
+
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('Server error (503)');
+    });
+
+    it('should throw AbortError message on request timeout', async () => {
+      const abortError = new Error('The operation was aborted.');
+      abortError.name = 'AbortError';
+      (global.fetch as jest.Mock).mockRejectedValue(abortError);
+
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('timed out');
+    });
+
+    it('should rethrow non-abort network errors from retrievePaste', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('DNS failure'));
+
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('DNS failure');
     });
   });
 
@@ -183,6 +262,35 @@ describe('HttpApiClient', () => {
       const result = await client.getPowChallenge();
 
       expect(result).toEqual(mockChallenge);
+    });
+
+    it('should throw when PoW endpoint returns a non-OK error', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 503
+      });
+
+      await expect(client.getPowChallenge()).rejects.toThrow('Failed to fetch PoW challenge');
+    });
+  });
+
+  describe('createPaste — JSON parse fallback (text body)', () => {
+    it('should use text body parsed as JSON when first json() call fails but text is JSON', async () => {
+      const request = {
+        ct: 'ct',
+        iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+        text: jest.fn().mockResolvedValue(JSON.stringify({ error: 'from JSON in text body' }))
+      });
+
+      await expect(client.createPaste(request)).rejects.toThrow('from JSON in text body');
     });
   });
 
