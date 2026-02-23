@@ -16,9 +16,7 @@ import type {
   PasteMetadata,
   CreatePasteRequest,
   CreatePasteResponse,
-  GetPasteResponse,
-  PasteOptions,
-  PasteCreated
+  GetPasteResponse
 } from '../../../src/core/models/paste.js';
 
 // ============================================================================
@@ -222,60 +220,6 @@ describe('GetPasteResponse', () => {
     expect(response.ct).toBeTruthy();
     expect(response.iv).toBeTruthy();
     expect(response.meta).toBeTruthy();
-  });
-});
-
-describe('PasteOptions', () => {
-  it('should have correct structure', () => {
-    const options: PasteOptions = {
-      expirationMinutes: 60,
-      hasPassword: false
-    };
-
-    expect(options.expirationMinutes).toBe(60);
-    expect(options.hasPassword).toBe(false);
-  });
-
-  it('should handle all combinations', () => {
-    const combinations: PasteOptions[] = [
-      { expirationMinutes: 1, hasPassword: false },
-      { expirationMinutes: 60, hasPassword: false },
-      { expirationMinutes: 1440, hasPassword: true }
-    ];
-
-    combinations.forEach(opts => {
-      expect(opts.expirationMinutes).toBeGreaterThan(0);
-      expect(typeof opts.hasPassword).toBe('boolean');
-    });
-  });
-});
-
-describe('PasteCreated', () => {
-  it('should have correct structure', () => {
-    const created: PasteCreated = {
-      id: 'abc123',
-      deleteToken: 'token-xyz',
-      shareUrl: 'https://example.com/view.html?p=abc123#key:iv',
-      deleteUrl: 'https://example.com/delete.html?p=abc123&token=token-xyz'
-    };
-
-    expect(created.id).toBeTruthy();
-    expect(created.deleteToken).toBeTruthy();
-    expect(created.shareUrl).toContain('view.html');
-    expect(created.deleteUrl).toContain('delete.html');
-  });
-
-  it('should have URLs containing the paste ID', () => {
-    const created: PasteCreated = {
-      id: 'test-id-123',
-      deleteToken: 'token',
-      shareUrl: 'https://example.com/view.html?p=test-id-123#key',
-      deleteUrl: 'https://example.com/delete.html?p=test-id-123&token=token'
-    };
-
-    expect(created.shareUrl).toContain(created.id);
-    expect(created.deleteUrl).toContain(created.id);
-    expect(created.deleteUrl).toContain(created.deleteToken);
   });
 });
 

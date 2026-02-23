@@ -2,12 +2,16 @@
  * paste-creator.test.ts - Tests for paste creation (meta includes allowChat)
  */
 
-import * as pasteCreator from '../../../src/features/paste-creator.js';
+import { PasteCreatorView } from '../../../src/presentation/components/paste-creator-view.js';
+import { CreatePasteUseCase } from '../../../src/application/use-cases/create-paste-use-case.js';
+import { EncryptionService } from '../../../src/core/services/encryption-service.js';
+import { PasteService } from '../../../src/core/services/paste-service.js';
 import * as security from '../../../src/security.js';
 import * as api from '../../../src/infrastructure/api/http-client.js';
 import * as validators from '../../../src/core/validators/index.js';
 import * as uiManager from '../../../src/ui/ui-manager.js';
 import * as storage from '../../../src/utils/storage.js';
+import { InlinePowSolver } from '../../../src/infrastructure/pow/inline-solver.js';
 
 describe('paste-creator allowChat', () => {
   let createPasteSpy: jest.SpyInstance;
@@ -53,7 +57,10 @@ describe('paste-creator allowChat', () => {
 
   it('should send allowChat true in meta when creating a paste', async () => {
     setupForm();
-    await (pasteCreator as { createPaste: () => Promise<void> }).createPaste();
+    const client = new api.HttpApiClient();
+    const useCase = new CreatePasteUseCase(client, new InlinePowSolver(), new EncryptionService(), new PasteService());
+    const view = new PasteCreatorView(useCase);
+    await view.handleSubmit();
     expect(createPasteSpy).toHaveBeenCalled();
     const call = createPasteSpy.mock.calls[0][0];
     expect(call.meta.allowChat).toBe(true);

@@ -87,26 +87,3 @@ export interface GetPasteResponse {
   meta: PasteMetadata;
 }
 
-/**
- * Paste options when creating a new paste (UI layer)
- */
-export interface PasteOptions {
-  /** Expiration time in minutes */
-  expirationMinutes: number;
-  /** Password protection enabled */
-  hasPassword: boolean;
-}
-
-/**
- * Paste creation result (domain model)
- */
-export interface PasteCreated {
-  /** Paste ID */
-  id: string;
-  /** Deletion token */
-  deleteToken: string;
-  /** Shareable URL with encryption key in fragment */
-  shareUrl: string;
-  /** Deletion URL */
-  deleteUrl: string;
-}

@@ -1,8 +1,8 @@
 /**
- * app.ts - ZKPaste client-side application (Refactored)
+ * app.ts - ZKPaste client-side application
  * 
- * This is the main entry point for the ZKPaste web client.
- * It orchestrates the various modules and initializes the application.
+ * Main entry point for the ZKPaste web client.
+ * Wires dependencies and initializes presentation components.
  * 
  * Security model:
  * - All encryption happens in the browser
@@ -10,10 +10,6 @@
  * - The server only stores encrypted content (zero-knowledge)
  * - Privacy-preserving validation without content analysis
  */
-
-// ============================================================================
-// IMPORTS
-// ============================================================================
 
 import { 
   onDomReady,
@@ -26,31 +22,54 @@ import {
 } from './ui/dom-helpers.js';
 
 import { initializeWindowUI } from './ui/ui-manager.js';
-import { setupPasteCreation } from './features/paste-creator.js';
-import { setupPasteViewing } from './features/paste-viewer.js';
 import { applyPassiveEventsPatch } from './utils/passive-events.js';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+import { PasteCreatorView } from './presentation/components/paste-creator-view.js';
+import { PasteViewerView } from './presentation/components/paste-viewer-view.js';
+import { ChatView } from './presentation/components/chat-view.js';
+import { CreatePasteUseCase } from './application/use-cases/create-paste-use-case.js';
+import { ViewPasteUseCase } from './application/use-cases/view-paste-use-case.js';
+import { DeletePasteUseCase } from './application/use-cases/delete-paste-use-case.js';
+import { ChatUseCase } from './application/use-cases/chat-use-case.js';
+import { EncryptionService } from './core/services/encryption-service.js';
+import { PasteService } from './core/services/paste-service.js';
+import { HttpApiClient } from './infrastructure/api/http-client.js';
+import { InlinePowSolver } from './infrastructure/pow/inline-solver.js';
+import type { PasteMetadata } from './core/models/paste.js';
 
 const MAX_CONTENT_CHARACTERS = 1048576;
 
-// ============================================================================
-// APPLICATION INITIALIZATION
-// ============================================================================
+const apiClient = new HttpApiClient();
+const powSolver = new InlinePowSolver();
+const encryptionService = new EncryptionService();
+const pasteService = new PasteService();
 
-/**
- * Initialize the application
- */
+const createPasteUseCase = new CreatePasteUseCase(apiClient, powSolver, encryptionService, pasteService);
+const viewPasteUseCase = new ViewPasteUseCase(apiClient, encryptionService);
+const deletePasteUseCase = new DeletePasteUseCase(apiClient);
+const chatUseCase = new ChatUseCase(encryptionService);
+
+const creatorView = new PasteCreatorView(createPasteUseCase);
+const viewerView = new PasteViewerView(viewPasteUseCase, deletePasteUseCase);
+const chatView = new ChatView(chatUseCase);
+
+function shouldInitChat(_meta: PasteMetadata): boolean {
+  return viewerView.shouldInitChat(_meta);
+}
+
+async function viewPaste(): Promise<void> {
+  if (!location.pathname.endsWith('view.html')) return;
+
+  const result = await viewerView.handleView();
+
+  if (result && shouldInitChat(result.metadata)) {
+    chatView.setup(result.pasteId, result.salt, result.initialPassword);
+  }
+}
+
 function initializeApp(): void {
-  // Apply passive events patch to fix scroll performance warnings
   applyPassiveEventsPatch();
-
-  // Initialize window UI functions
   initializeWindowUI();
   
-  // Setup DOM event handlers when ready
   onDomReady(() => {
     setupCharCounter(MAX_CONTENT_CHARACTERS);
     setupViewCopyButton();
@@ -60,18 +79,10 @@ function initializeApp(): void {
     setupNewPasteButton();
   });
   
-  // Setup paste creation (for index.html)
-  setupPasteCreation();
-  
-  // Setup paste viewing (for view.html)
-  setupPasteViewing();
+  creatorView.setup();
+  void viewPaste();
 }
 
-// ============================================================================
-// START APPLICATION
-// ============================================================================
-
-// Initialize when script loads
 if (typeof window !== 'undefined') {
   initializeApp();
 }

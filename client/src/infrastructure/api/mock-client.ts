@@ -3,35 +3,28 @@
  * Simulates API responses without making real HTTP requests
  */
 
-import {
+import type {
   IApiClient,
-  PasteCreateRequest,
-  PasteCreateResponse,
-  PasteRetrieveResponse,
+  CreatePasteRequest,
+  CreatePasteResponse,
+  GetPasteResponse,
   PowChallenge
 } from './interfaces.js';
 import type { PasteMetadata } from '../../core/models/paste.js';
 
 /**
  * Mock API client for testing
- * Stores pastes in memory and simulates server behavior
  */
 export class MockApiClient implements IApiClient {
   private pastes = new Map<string, { ct: string; iv: string; meta: PasteMetadata; deleteToken: string }>();
   private powEnabled = false;
   private nextId = 1;
 
-  /**
-   * Enable or disable PoW challenges
-   */
   setPowEnabled(enabled: boolean): void {
     this.powEnabled = enabled;
   }
 
-  /**
-   * Create a new paste
-   */
-  async createPaste(request: PasteCreateRequest): Promise<PasteCreateResponse> {
+  async createPaste(request: CreatePasteRequest): Promise<CreatePasteResponse> {
     const id = `mock-${this.nextId++}`;
     const deleteToken = `token-${Math.random().toString(36).substring(7)}`;
     
@@ -45,10 +38,7 @@ export class MockApiClient implements IApiClient {
     return { id, deleteToken };
   }
 
-  /**
-   * Retrieve a paste by ID
-   */
-  async retrievePaste(id: string): Promise<PasteRetrieveResponse> {
+  async retrievePaste(id: string): Promise<GetPasteResponse> {
     const paste = this.pastes.get(id);
     
     if (!paste) {

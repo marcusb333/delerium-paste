@@ -3,15 +3,13 @@
  * Uses fetch API for HTTP requests
  */
 
-import {
+import type {
   IApiClient,
-  PasteCreateRequest,
-  PasteCreateResponse,
-  PasteRetrieveResponse,
+  CreatePasteRequest,
+  CreatePasteResponse,
+  GetPasteResponse,
   PowChallenge
 } from './interfaces.js';
-
-// Note: These are now aliases to the core domain models
 
 /**
  * HTTP-based API client using fetch
@@ -19,10 +17,7 @@ import {
 export class HttpApiClient implements IApiClient {
   constructor(private baseUrl: string = '/api') {}
 
-  /**
-   * Create a new paste
-   */
-  async createPaste(request: PasteCreateRequest): Promise<PasteCreateResponse> {
+  async createPaste(request: CreatePasteRequest): Promise<CreatePasteResponse> {
     const response = await fetch(`${this.baseUrl}/pastes`, {
       method: 'POST',
       headers: {
@@ -61,7 +56,7 @@ export class HttpApiClient implements IApiClient {
   /**
    * Retrieve a paste by ID
    */
-  async retrievePaste(id: string): Promise<PasteRetrieveResponse> {
+  async retrievePaste(id: string): Promise<GetPasteResponse> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), HttpApiClient.FETCH_TIMEOUT_MS);
 
