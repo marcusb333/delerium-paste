@@ -1,10 +1,10 @@
-name: Release Workflow
+name: Release Verification
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 1.0.7)'
+        description: 'Version to verify (e.g., 1.0.7)'
         required: true
         type: string
   push:
@@ -12,88 +12,76 @@ on:
       - 'release/**'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  create-release:
-    name: Create Release
+  verify-release:
+    name: Verify Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine version
         id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
           else
             # Extract version from branch name (release/v1.0.7 -> 1.0.7)
-            BRANCH_NAME="${{ github.ref_name }}"
-            VERSION=$(echo "$BRANCH_NAME" | sed 's/release\/v\?//')
+            VERSION=$(echo "$REF_NAME" | sed 's/release\/v\?//')
           fi
-          
+
           # Validate version format
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Error: Invalid version format: $VERSION"
             exit 1
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
 
       - name: Verify version matches codebase
+        env:
+          EXPECTED: ${{ steps.version.outputs.version }}
         run: |
-          CURRENT_VERSION=$(grep '"version":' client/package.json | head -1 | awk -F: '{ print $2 }' | sed 's/[", ]//g')
-          EXPECTED_VERSION="${{ steps.version.outputs.version }}"
-          
-          if [ "$CURRENT_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "Error: Version mismatch!"
-            echo "  Expected: $EXPECTED_VERSION"
-            echo "  Found in package.json: $CURRENT_VERSION"
-            echo ""
-            echo "Please run: ./scripts/bump-version.sh $EXPECTED_VERSION"
+          # Check package.json
+          PKG_VERSION=$(grep '"version":' client/package.json | head -1 | awk -F: '{ print $2 }' | sed 's/[", ]//g')
+          if [ "$PKG_VERSION" != "$EXPECTED" ]; then
+            echo "Error: package.json version mismatch (found: $PKG_VERSION, expected: $EXPECTED)"
             exit 1
           fi
-          
-          echo "✓ Version verification passed: $EXPECTED_VERSION"
 
-      - name: Check if tag exists
-        id: check_tag
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists."
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "Tag $TAG does not exist."
-            echo "exists=false" >> $GITHUB_OUTPUT
+          # Check MODULE.bazel
+          BAZEL_VERSION=$(grep 'version = "' MODULE.bazel | head -1 | sed 's/.*version = "\(.*\)".*/\1/')
+          if [ "$BAZEL_VERSION" != "$EXPECTED" ]; then
+            echo "Error: MODULE.bazel version mismatch (found: $BAZEL_VERSION, expected: $EXPECTED)"
+            exit 1
           fi
 
-      - name: Create Tag
-        if: steps.check_tag.outputs.exists == 'false'
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
+          # Check HTML files contain the version
+          for f in client/index.html client/view.html client/delete.html; do
+            if ! grep -q "v${EXPECTED}" "$f"; then
+              echo "Error: $f does not contain v${EXPECTED}"
+              exit 1
+            fi
+          done
 
-      - name: Create Release
-        if: steps.check_tag.outputs.exists == 'false'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Release ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          draft: false
-          prerelease: false
-          body: |
-            ## Release ${{ steps.version.outputs.tag }}
-            
-            This release was created automatically. The version bump workflow will automatically create a PR to bump to the next version.
+          echo "✓ All version checks passed for $EXPECTED"
+
+      - name: Check if tag already exists
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Warning: Tag $TAG already exists"
+          else
+            echo "Tag $TAG does not exist yet (will be created by release script after merge)"
+          fi
