@@ -86,6 +86,7 @@ data/
 *.bak
 *.tmp
 .cache/
+.release-state
 
 # Local configuration (not for production)
 application-local.conf

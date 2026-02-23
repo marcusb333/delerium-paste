@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run
+.PHONY: help setup start stop restart logs dev clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue
 
 # Default target
 help:
@@ -37,6 +37,11 @@ help:
 	@echo "📦 Version Management:"
 	@echo "  make version-bump VERSION=1.0.7 - Bump version across codebase"
 	@echo "  make version-bump-dry-run VERSION=1.0.7 - Preview version changes"
+	@echo ""
+	@echo "🚢 Release:"
+	@echo "  make release ARGS='--patch'    - Run full release pipeline (--patch|--minor|--major)"
+	@echo "  make release-dry-run           - Preview release pipeline"
+	@echo "  make release-continue          - Resume interrupted release"
 	@echo ""
 	@echo "🔧 Bazel (Server Build):"
 	@echo "  make bazel-setup   - Install Bazelisk (one-time setup)"
@@ -347,3 +352,19 @@ version-bump-dry-run:
 	@echo "🔍 Dry run: Previewing version bump to $(VERSION)..."
 	@chmod +x scripts/bump-version.sh
 	./scripts/bump-version.sh $(VERSION) --dry-run
+
+# Release pipeline
+release:
+	@echo "🚢 Starting release pipeline..."
+	@chmod +x scripts/release.sh
+	./scripts/release.sh $(ARGS)
+
+release-dry-run:
+	@echo "🔍 Dry run: Previewing release pipeline..."
+	@chmod +x scripts/release.sh
+	./scripts/release.sh --dry-run
+
+release-continue:
+	@echo "🚢 Resuming release pipeline..."
+	@chmod +x scripts/release.sh
+	./scripts/release.sh --continue
