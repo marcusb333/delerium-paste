@@ -1,0 +1,20 @@
+services:
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Pull new images and remove old ones
+      - WATCHTOWER_CLEANUP=true
+      # Check Docker Hub every 5 minutes
+      - WATCHTOWER_POLL_INTERVAL=300
+      # Only watch the server container (not nginx/watchtower itself)
+      - WATCHTOWER_SCOPE=delerium-auto
+    command: --scope delerium-auto
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true

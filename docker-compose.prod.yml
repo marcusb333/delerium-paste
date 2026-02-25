@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: ./server/Dockerfile
     restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.scope=delerium-auto"
     environment:
       - DELETION_TOKEN_PEPPER=${DELETION_TOKEN_PEPPER}
       - DATA_ENC_KEYRING_PATH=/data/keyring.json

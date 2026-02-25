@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue
+.PHONY: help setup start stop restart logs dev clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod deploy-prod-watch prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue
 
 # Default target
 help:
@@ -10,10 +10,11 @@ help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "🚀 Production:"
-	@echo "  make deploy-prod   - Deploy to production (with backup)"
-	@echo "  make prod-status   - Check production status"
-	@echo "  make prod-logs     - View production logs"
-	@echo "  make prod-stop     - Stop production containers"
+	@echo "  make deploy-prod        - Deploy to production (with backup)"
+	@echo "  make deploy-prod-watch  - Deploy + start Watchtower (auto-updates on new Docker Hub tag)"
+	@echo "  make prod-status        - Check production status"
+	@echo "  make prod-logs          - View production logs"
+	@echo "  make prod-stop          - Stop production containers"
 	@echo ""
 	@echo "🔧 Development:"
 	@echo "  make setup         - 🔐 Interactive setup wizard (configure secrets)"
@@ -287,6 +288,14 @@ deploy-prod:
 	@echo "🚀 Deploying to production..."
 	@chmod +x scripts/deploy-prod.sh
 	./scripts/deploy-prod.sh
+
+# Start production with Watchtower for automatic Docker Hub updates
+deploy-prod-watch:
+	@echo "🚀 Deploying to production with auto-update via Watchtower..."
+	@chmod +x scripts/deploy-prod.sh
+	./scripts/deploy-prod.sh
+	docker compose -f docker-compose.watchtower.yml up -d
+	@echo "✅ Watchtower running — server will auto-update when a new image is pushed to Docker Hub"
 
 prod-status:
 	@echo "📊 Checking production status..."
