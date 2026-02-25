@@ -31,6 +31,8 @@ Zero-knowledge encrypted paste system. All encryption happens client-side; the s
 - [PR Guide](prs/README.md) - Contribution workflow
 - [Testing Guide](../client/tests/README.md) - Unit, integration, E2E
 - [Bazel Quickstart](development/BAZEL_QUICKSTART.md)
+- [Docker Watch](development/DOCKER_WATCH.md) - Hot-reload development mode
+- [Docker Watch](development/DOCKER_WATCH.md) - Hot-reload development mode
 
 ### Security
 - [Security Checklist](security/CHECKLIST.md)

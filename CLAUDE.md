@@ -88,6 +88,7 @@ When in doubt, apply the protocol. See `docs/security/CHECKLIST.md` and `.cursor
 ```bash
 make quick-start              # First time setup
 make dev                      # Development mode (hot-reload)
+make dev-watch                # Development with Docker watch (recommended, requires Docker Compose 2.22+)
 make build-client             # Compile TypeScript
 make start                    # Build client + start Docker services
 make stop / make logs         # Stop containers / follow logs
