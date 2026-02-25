@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod deploy-prod-watch prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod deploy-prod-watch prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue
 
 # Default target
 help:
@@ -22,7 +22,8 @@ help:
 	@echo "  make stop          - Stop all containers"
 	@echo "  make restart       - Restart services"
 	@echo "  make logs          - Follow logs from all services"
-	@echo "  make dev           - Development mode with hot-reload"
+	@echo "  make dev           - Development mode with hot-reload (TypeScript watch + Docker)"
+	@echo "  make dev-watch     - Development mode with Docker watch (auto-sync file changes)"
 	@echo "  make clean         - Clean up everything (volumes, containers, etc.)"
 	@echo "  make test          - Run all tests"
 	@echo "  make build-client  - Build TypeScript only"
@@ -102,6 +103,12 @@ dev:
 	@echo ""
 	@chmod +x scripts/dev.sh
 	./scripts/dev.sh
+
+# Development mode with Docker watch (auto-sync file changes)
+dev-watch:
+	@echo "🔧 Starting development mode with Docker watch..."
+	@chmod +x scripts/dev-watch.sh
+	./scripts/dev-watch.sh
 
 # Clean up everything
 clean:

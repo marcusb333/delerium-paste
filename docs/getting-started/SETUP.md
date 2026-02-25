@@ -172,6 +172,51 @@ LETSENCRYPT_EMAIL=you@yourdomain.com
 
 Use the full 64-character pepper and configure your domain for SSL.
 
+## Development Workflow
+
+### Standard Development Mode
+
+For active development with hot-reloading:
+
+```bash
+make dev
+```
+
+This starts:
+- Backend in Docker containers
+- TypeScript watch mode for automatic recompilation
+- Nginx serving your client files
+
+Access the app at `http://localhost:8080` and edit files - TypeScript will automatically recompile on save.
+
+### Docker Watch Mode (Recommended)
+
+For the best development experience with automatic file syncing:
+
+```bash
+make dev-watch
+```
+
+This enables:
+- **Automatic file syncing** from your filesystem to Docker containers
+- **TypeScript hot-reload** for instant compilation
+- **Live changes** reflected immediately (just refresh browser)
+- **Server auto-rebuild** when Kotlin code changes
+
+**Requirements**: Docker Compose v2.22+ (included in Docker Desktop 4.24+)
+
+See [Docker Watch Documentation](../development/DOCKER_WATCH.md) for detailed usage.
+
+### Manual Start (No Watch)
+
+If you just want to build and run without hot-reloading:
+
+```bash
+make start
+```
+
+This builds the client once and starts all services. You'll need to manually rebuild and restart when making changes.
+
 ## Security Best Practices
 
 ### ✅ DO

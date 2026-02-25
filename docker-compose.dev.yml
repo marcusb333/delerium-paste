@@ -10,13 +10,49 @@ services:
     environment:
       - DELETION_TOKEN_PEPPER=dev-pepper-change-me
       - LOG_LEVEL=DEBUG
-    # Add volume for live code reloading (if needed for future development)
-    volumes:
-      - ./server/src:/app/src:ro
-    # Health check
+    # Health check with shorter intervals for faster feedback
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 30s
+    # Docker watch configuration for server
+    # Note: Server rebuilds are triggered but may take 30-60s due to Bazel compilation
+    develop:
+      watch:
+        - action: rebuild
+          path: ./server/src
+        - action: rebuild
+          path: ./server/BUILD.bazel
+        - action: rebuild
+          path: ./server/Dockerfile
+
+  web:
+    # Docker watch configuration for client files
+    # The base docker-compose.yml already mounts ./client:/usr/share/nginx/html:ro
+    # Docker watch will detect changes and sync them automatically
+    # Note: The volume mount is read-only, so watch uses sync+restart for updates
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./client/js
+          target: /usr/share/nginx/html/js
+        - action: sync+restart
+          path: ./client/styles
+          target: /usr/share/nginx/html/styles
+        - action: sync+restart
+          path: ./client/index.html
+          target: /usr/share/nginx/html/index.html
+        - action: sync+restart
+          path: ./client/view.html
+          target: /usr/share/nginx/html/view.html
+        - action: sync+restart
+          path: ./client/delete.html
+          target: /usr/share/nginx/html/delete.html
+        - action: sync+restart
+          path: ./client/favicon.svg
+          target: /usr/share/nginx/html/favicon.svg
+        - action: sync+restart
+          path: ./client/vendor
+          target: /usr/share/nginx/html/vendor
