@@ -1,0 +1,3 @@
+AWS_PROFILE="default"
+AWS_REGION="eu-north-1"
+DEFANG_PROVIDER="aws"
