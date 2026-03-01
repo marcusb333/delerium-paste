@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: web
-          image: marcusb333/delerium-web:latest
-          imagePullPolicy: Always
+          image: marcusb333/delerium-web:v1.1.1
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 80
