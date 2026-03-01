@@ -25,7 +25,10 @@ services:
       - app-network
 
   web:
-    image: nginx:1.27-alpine
+    image: marcusb333/delerium-web:latest
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     restart: unless-stopped
     depends_on:
       server:

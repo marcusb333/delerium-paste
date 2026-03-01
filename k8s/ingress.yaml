@@ -1,0 +1,33 @@
+# Requires an nginx Ingress controller (e.g. ingress-nginx).
+# For TLS: install cert-manager and configure a ClusterIssuer named "letsencrypt-prod",
+#          then uncomment the cert-manager annotation below.
+#
+# Replace "paste.example.com" with your actual domain in both places.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: delerium-ingress
+  namespace: delerium
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"         # Match server maxSizeBytes (8 MB)
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"      # Uncomment after cert-manager is set up
+spec:
+  ingressClassName: nginx
+  # tls:                                                       # Uncomment for HTTPS
+  #   - hosts:
+  #       - paste.example.com
+  #     secretName: delerium-tls
+  rules:
+    - host: paste.example.com   # REPLACE with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: delerium-web
+                port:
+                  number: 80
