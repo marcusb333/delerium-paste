@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delerium-server
+  namespace: delerium
+  labels:
+    app: delerium-server
+spec:
+  # IMPORTANT: SQLite does not support concurrent writers.
+  # Keep replicas at 1. Scale horizontally only after migrating to a client-server DB.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: delerium-server
+  strategy:
+    type: Recreate   # Ensures old pod is gone before new one starts (SQLite file locking)
+  template:
+    metadata:
+      labels:
+        app: delerium-server
+    spec:
+      securityContext:
+        runAsNonRoot: true  # Image USER is 'delirium' (non-root)
+        fsGroup: 1000       # Ensures /data volume is writable by the delirium user
+      containers:
+        - name: server
+          image: marcusb333/delerium-server:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DELETION_TOKEN_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: delerium-server-secret
+                  key: DELETION_TOKEN_PEPPER
+            - name: DB_PATH
+              value: "jdbc:sqlite:/data/pastes.db"
+            - name: DATA_ENC_KEYRING_PATH
+              value: "/data/keyring.json"
+            - name: DATA_ENC_ROTATION_DAYS
+              value: "30"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: delerium-server-data
+        - name: tmp
+          emptyDir: {}
