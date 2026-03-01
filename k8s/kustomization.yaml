@@ -10,4 +10,7 @@ resources:
   - web/configmap.yaml
   - web/deployment.yaml
   - web/service.yaml
+  - network-policy.yaml
+  - pdb.yaml
   - ingress.yaml
+  # cert-manager/cluster-issuer.yaml is applied separately after cert-manager is installed

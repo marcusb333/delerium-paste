@@ -1,25 +1,30 @@
-# Requires an nginx Ingress controller (e.g. ingress-nginx).
-# For TLS: install cert-manager and configure a ClusterIssuer named "letsencrypt-prod",
-#          then uncomment the cert-manager annotation below.
+# Requires:
+#   - ingress-nginx controller running in the cluster
+#   - cert-manager installed + ClusterIssuers applied (k8s/cert-manager/cluster-issuer.yaml)
+#   - Replace "paste.example.com" with your actual domain (2 occurrences below)
 #
-# Replace "paste.example.com" with your actual domain in both places.
+# Recommended workflow:
+#   1. Apply with letsencrypt-staging first, verify the untrusted cert arrives, then
+#      switch the annotation to letsencrypt-prod and delete the old secret to force renewal:
+#      kubectl delete secret delerium-tls -n delerium
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: delerium-ingress
   namespace: delerium
   annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "8m"         # Match server maxSizeBytes (8 MB)
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"        # Match server maxSizeBytes (8 MB)
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    # cert-manager.io/cluster-issuer: "letsencrypt-prod"      # Uncomment after cert-manager is set up
+    # Start with staging to avoid Let's Encrypt rate limits; switch to letsencrypt-prod once verified
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
 spec:
   ingressClassName: nginx
-  # tls:                                                       # Uncomment for HTTPS
-  #   - hosts:
-  #       - paste.example.com
-  #     secretName: delerium-tls
+  tls:
+    - hosts:
+        - paste.example.com   # REPLACE with your domain
+      secretName: delerium-tls
   rules:
     - host: paste.example.com   # REPLACE with your domain
       http:
