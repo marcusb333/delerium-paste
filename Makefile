@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status
 
 # Default target
 help:
@@ -69,9 +69,14 @@ help:
 	@echo "  make push-multiarch - Build and push multi-architecture images to registry"
 	@echo ""
 	@echo "☸️  Kubernetes:"
+	@echo "  make k8s-setup     - Interactive first-time setup (domain, email, pepper)"
 	@echo "  make k8s-apply     - Apply all Kubernetes manifests (kubectl apply -k k8s/)"
+	@echo "  make k8s-deploy    - Full deploy: apply manifests + show status"
 	@echo "  make k8s-delete    - Delete all Kubernetes resources"
 	@echo "  make k8s-status    - Show pod/service/ingress status in the delerium namespace"
+	@echo "  make k8s-install-cert-manager - Install cert-manager + apply ClusterIssuers"
+	@echo "  make k8s-tls-prod  - Switch ingress from staging to production certificates"
+	@echo "  make k8s-cert-status - Check certificate/order status"
 	@echo ""
 
 # Interactive setup wizard
@@ -418,6 +423,43 @@ k8s-delete:
 	kubectl delete -k k8s/ --ignore-not-found
 	@echo "✅ Resources deleted"
 
+# Interactive first-time Kubernetes setup
+k8s-setup:
+	@echo "☸️  Kubernetes first-time setup"
+	@echo ""
+	@read -p "Enter your domain (e.g. paste.mydomain.com): " DOMAIN; \
+	read -p "Enter your email (for Let's Encrypt): " EMAIL; \
+	PEPPER=$$(openssl rand -hex 32); \
+	echo ""; \
+	echo "Configuring domain: $$DOMAIN"; \
+	sed -i'' -e "s/paste\.example\.com/$$DOMAIN/g" k8s/ingress.yaml; \
+	echo "Configuring email: $$EMAIL"; \
+	sed -i'' -e "s/REPLACE_WITH_YOUR_EMAIL/$$EMAIL/g" k8s/cert-manager/cluster-issuer.yaml; \
+	echo "Generating deletion token pepper..."; \
+	sed -i'' -e "s/REPLACE_WITH_OUTPUT_OF__openssl_rand_-hex_32/$$PEPPER/g" k8s/server/secret.yaml; \
+	echo ""; \
+	echo "--- Setup complete ---"; \
+	echo "  Domain : $$DOMAIN  (k8s/ingress.yaml)"; \
+	echo "  Email  : $$EMAIL  (k8s/cert-manager/cluster-issuer.yaml)"; \
+	echo "  Pepper : (generated, 64-char hex in k8s/server/secret.yaml)"; \
+	echo ""; \
+	echo "Next steps:"; \
+	echo "  1. make k8s-install-cert-manager   # if using TLS"; \
+	echo "  2. make k8s-deploy                 # apply manifests"
+
+# Install cert-manager and apply ClusterIssuers
+k8s-install-cert-manager:
+	@echo "☸️  Installing cert-manager..."
+	kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+	@echo "Waiting for cert-manager pods to be ready..."
+	kubectl wait --namespace cert-manager --for=condition=Ready pod --all --timeout=120s
+	@echo "Applying ClusterIssuers..."
+	kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
+	@echo "✅ cert-manager installed and ClusterIssuers applied"
+
+# Full Kubernetes deployment (apply + status)
+k8s-deploy: k8s-apply k8s-status
+
 # Show Kubernetes deployment status
 k8s-status:
 	@echo "☸️  Delerium namespace status:"
@@ -433,3 +475,25 @@ k8s-status:
 	@echo ""
 	@echo "--- PVC ---"
 	kubectl get pvc -n delerium
+
+# Switch ingress from staging to production TLS certificates
+k8s-tls-prod:
+	@echo "☸️  Switching to production TLS certificates..."
+	sed -i'' -e 's/letsencrypt-staging/letsencrypt-prod/' k8s/ingress.yaml
+	kubectl apply -f k8s/ingress.yaml
+	@echo "Deleting old staging secret to trigger renewal..."
+	kubectl delete secret delerium-tls -n delerium --ignore-not-found
+	@echo "✅ Switched to letsencrypt-prod. Monitor with: make k8s-cert-status"
+
+# Check certificate status
+k8s-cert-status:
+	@echo "☸️  Certificate status:"
+	@echo ""
+	@echo "--- Certificates ---"
+	kubectl get certificate -n delerium
+	@echo ""
+	@echo "--- CertificateRequests ---"
+	kubectl get certificaterequest -n delerium
+	@echo ""
+	@echo "--- Orders ---"
+	kubectl get order -n delerium
