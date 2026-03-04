@@ -25,7 +25,7 @@ k8s/
 │   └── secret.yaml             # Secret template — fill in before applying
 ├── web/
 │   ├── deployment.yaml         # Nginx static frontend + API proxy
-│   ├── service.yaml            # ClusterIP on port 80
+│   ├── service.yaml            # NodePort on port 80 (nodePort: 30080)
 │   └── configmap.yaml          # nginx.conf (proxies /api/ to the server service)
 └── cert-manager/
     └── cluster-issuer.yaml     # Let's Encrypt staging + prod ClusterIssuers
@@ -193,6 +193,58 @@ kubectl cp delerium/$(kubectl get pod -n delerium -l app=delerium-server -o json
 ```
 
 Or use a volume snapshot if your storage class supports it.
+
+## Local Development (Docker Desktop)
+
+For local development on Docker Desktop, the web service is exposed as a NodePort
+on port 30080, so you don't need `kubectl port-forward` (which drops on sleep/restart).
+
+### Quick Start
+
+```bash
+make k8s-local
+```
+
+This installs the ingress-nginx controller, applies all manifests, and prints
+access instructions.
+
+### Access Methods
+
+**NodePort (always works, no extra config):**
+
+```bash
+curl http://localhost:30080/api/health
+```
+
+Open <http://localhost:30080> in your browser.
+
+**Ingress with hostname (realistic, matches production):**
+
+1. Add a `/etc/hosts` entry:
+
+   ```
+   127.0.0.1 test.delerium.cc
+   ```
+
+2. Install the ingress-nginx controller (already done by `make k8s-local`):
+
+   ```bash
+   make k8s-install-ingress
+   ```
+
+3. Apply manifests:
+
+   ```bash
+   make k8s-apply
+   ```
+
+4. Access via hostname:
+
+   ```bash
+   curl http://test.delerium.cc/api/health
+   ```
+
+Both methods survive Mac sleep/wake cycles — no need to restart port-forward.
 
 ## Troubleshooting
 
