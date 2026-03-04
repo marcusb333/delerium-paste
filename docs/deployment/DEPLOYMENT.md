@@ -84,6 +84,7 @@ docker run --rm -v delirium_server-data:/data -v $(pwd)/backups:/backup \
 ## More
 
 - [Setup Guide](../getting-started/SETUP.md) - Initial configuration
+- [Kubernetes](KUBERNETES.md) - Deploy to a Kubernetes cluster
 - [SSL Setup](SSL_SETUP.md) - Advanced SSL
 - [Security Checklist](../security/CHECKLIST.md)
 - [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md)
