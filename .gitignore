@@ -8,6 +8,7 @@
 *.crt
 secrets/
 .secrets
+k8s/server/secret.yaml
 
 # Dependencies
 node_modules/
