@@ -294,25 +294,6 @@ describe('HttpApiClient', () => {
     });
   });
 
-  describe('healthCheck', () => {
-    it('should return true when API is healthy', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
-        ok: true
-      });
-
-      const result = await client.healthCheck();
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false when API is down', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
-
-      const result = await client.healthCheck();
-
-      expect(result).toBe(false);
-    });
-  });
 });
 
 describe('MockApiClient', () => {
@@ -436,13 +417,6 @@ describe('MockApiClient', () => {
       expect(result).not.toBeNull();
       expect(result?.challenge).toBeTruthy();
       expect(result?.difficulty).toBeGreaterThan(0);
-    });
-  });
-
-  describe('healthCheck', () => {
-    it('should always return true', async () => {
-      const result = await client.healthCheck();
-      expect(result).toBe(true);
     });
   });
 

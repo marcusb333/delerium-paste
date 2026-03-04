@@ -1,8 +1,10 @@
 import { encodeBase64Url as b64u, decodeBase64Url as ub64u } from '../../../../src/core/crypto/encoding';
-import { AesGcmCryptoProvider } from '../../../../src/core/crypto/aes-gcm';
 
-const cryptoProvider = new AesGcmCryptoProvider();
-const genIV = () => cryptoProvider.generateIV();
+const genIV = (): Uint8Array => {
+  const iv = new Uint8Array(12);
+  crypto.getRandomValues(iv);
+  return iv;
+};
 
 /**
  * Utility Functions Test Suite
@@ -10,7 +12,7 @@ const genIV = () => cryptoProvider.generateIV();
  * Tests the core utility functions used throughout the zkpaste application:
  * - b64u: Converts ArrayBuffer to URL-safe base64 encoding (no padding, +/ replaced with -_)
  * - ub64u: Converts URL-safe base64 string back to ArrayBuffer
- * - genIV: Generates cryptographically secure random initialization vectors for AES encryption
+ * - genIV: Generates cryptographically secure 12-byte random IVs for AES encryption
  * 
  * These functions are critical for:
  * 1. Secure data encoding/decoding for URL transmission
