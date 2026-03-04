@@ -20,7 +20,9 @@ spec:
         app: delerium-server
     spec:
       securityContext:
-        runAsNonRoot: true  # Image USER is 'delirium' (non-root)
+        runAsNonRoot: true
+        runAsUser: 1000     # UID of 'delirium' user in the image
+        runAsGroup: 1000
         fsGroup: 1000       # Ensures /data volume is writable by the delirium user
       containers:
         - name: server
