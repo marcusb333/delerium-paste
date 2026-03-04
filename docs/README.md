@@ -18,6 +18,7 @@ Zero-knowledge encrypted paste system. All encryption happens client-side; the s
 
 ### Deployment
 - [Deployment Guide](deployment/DEPLOYMENT.md) - Full deployment (local, VPS, SSL)
+- [Kubernetes](deployment/KUBERNETES.md) - Deploy to a Kubernetes cluster
 - [VPS Example](deployment/VPS_EXAMPLE.md) - Step-by-step VPS example
 - [SSL Setup](deployment/SSL_SETUP.md) - SSL configuration
 - [Multi-Architecture](deployment/multi-architecture.md) - AMD64/ARM64 builds
