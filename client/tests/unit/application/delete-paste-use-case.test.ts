@@ -16,7 +16,6 @@ function makeApiClient(overrides: Partial<IApiClient> = {}): IApiClient {
     retrievePaste: jest.fn(),
     deletePaste: jest.fn().mockResolvedValue(undefined),
     getPowChallenge: jest.fn().mockResolvedValue(null),
-    healthCheck: jest.fn().mockResolvedValue(true),
     ...overrides,
   };
 }

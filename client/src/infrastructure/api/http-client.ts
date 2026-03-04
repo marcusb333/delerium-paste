@@ -131,15 +131,4 @@ export class HttpApiClient implements IApiClient {
     return response.json();
   }
 
-  /**
-   * Health check
-   */
-  async healthCheck(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.baseUrl}/health`);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
 }

@@ -13,7 +13,7 @@ export interface PasswordModalOptions {
   placeholder?: string;
 }
 
-export interface PasswordModalResult {
+interface PasswordModalResult {
   password: string | null;
   cancelled: boolean;
 }
@@ -59,22 +59,6 @@ export class PasswordModal {
       this.resolveCallback = (result) => {
         resolve(result.cancelled ? null : result.password);
       };
-      this.createModal(options);
-      this.open();
-    });
-  }
-
-  /**
-   * Show password modal and return promise that resolves with PasswordModalResult (for backward compatibility)
-   */
-  showModal(options: PasswordModalOptions = {}): Promise<PasswordModalResult> {
-    return new Promise((resolve) => {
-      // If modal is already open, close it first
-      if (this._isOpen) {
-        this.close();
-      }
-
-      this.resolveCallback = resolve;
       this.createModal(options);
       this.open();
     });
@@ -360,16 +344,6 @@ export class PasswordModal {
     this.removeModal();
     this._isOpen = false;
     this.currentOptions = null;
-  }
-
-  /**
-   * Show error and keep modal open for retry
-   */
-  showErrorAndRetry(message: string): void {
-    this.showError(message);
-    // Keep modal open - don't close it
-    // User can try again
-    // The resolveCallback remains set so next submission will work
   }
 
   /**

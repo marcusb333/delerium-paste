@@ -30,13 +30,6 @@ export function failure<E = Error>(error: E): Failure<E> {
 }
 
 /**
- * Check if result is success
- */
-export function isSuccess<T, E>(result: Result<T, E>): result is Success<T> {
-  return result.success;
-}
-
-/**
  * Check if result is failure
  */
 export function isFailure<T, E>(result: Result<T, E>): result is Failure<E> {

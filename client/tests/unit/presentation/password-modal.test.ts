@@ -10,7 +10,6 @@
  * - show(): cancel resolves to null
  * - show(): empty password shows error, does not resolve yet
  * - show() while already open: updates existing modal, swaps callback
- * - showModal(): resolves with PasswordModalResult
  * - close(): resolves outstanding promise as cancelled
  * - closeOnSuccess(): cleans up state without resolving via callback
  * - isOpen() reflects state correctly
@@ -217,34 +216,6 @@ describe('PasswordModal – show() while already open', () => {
 
     modal.close();
     jest.runAllTimers();
-  });
-});
-
-// ─── showModal() ──────────────────────────────────────────────────────────────
-
-describe('PasswordModal – showModal()', () => {
-  it('should resolve with PasswordModalResult on submit', async () => {
-    const modal = new PasswordModal();
-    const promise = modal.showModal();
-
-    getInput().value = 'test-pw';
-    clickSubmit();
-
-    const result = await promise;
-    expect(result.cancelled).toBe(false);
-    expect(result.password).toBe('test-pw');
-  });
-
-  it('should resolve as cancelled when closed', async () => {
-    const modal = new PasswordModal();
-    const promise = modal.showModal();
-
-    modal.close();
-    jest.runAllTimers();
-
-    const result = await promise;
-    expect(result.cancelled).toBe(true);
-    expect(result.password).toBeNull();
   });
 });
 

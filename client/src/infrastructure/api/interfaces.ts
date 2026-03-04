@@ -27,5 +27,4 @@ export interface IApiClient {
   retrievePaste(id: string): Promise<GetPasteResponse>;
   deletePaste(id: string, token: string): Promise<void>;
   getPowChallenge(): Promise<PowChallenge | null>;
-  healthCheck(): Promise<boolean>;
 }
