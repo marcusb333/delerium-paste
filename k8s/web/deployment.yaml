@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: marcusb333/delerium-web:v1.2.0
+          image: marcusb333/delerium-web:v1.2.0-alpha
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
