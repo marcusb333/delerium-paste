@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
 
 # Default target
 help:
@@ -79,6 +79,12 @@ help:
 	@echo "  make k8s-local     - Local dev: install ingress + apply manifests + print instructions"
 	@echo "  make k8s-tls-prod  - Switch ingress from staging to production certificates"
 	@echo "  make k8s-cert-status - Check certificate/order status"
+	@echo ""
+	@echo "☁️  AWS (k3s on EC2):"
+	@echo "  make aws-create      - Launch an EC2 instance for Delerium"
+	@echo "  make aws-k3s-setup   - Run k3s setup on an EC2 instance (run via SSH)"
+	@echo "  make aws-k3s-deploy  - Apply AWS k3s overlay manifests"
+	@echo "  make aws-k3s-status  - Show deployment status"
 	@echo ""
 
 # Interactive setup wizard
@@ -522,4 +528,46 @@ k8s-local: k8s-install-ingress k8s-apply
 	@echo "  1. Add this line to /etc/hosts:"
 	@echo "     127.0.0.1 test.delerium.cc"
 	@echo "  2. Then visit: http://test.delerium.cc"
+	@echo ""
+
+# ──────────────────────────────────────────────
+# AWS — k3s on EC2
+# ──────────────────────────────────────────────
+
+# Launch an EC2 instance configured for Delerium
+aws-create:
+	@echo "☁️  Launching AWS EC2 instance..."
+	@chmod +x scripts/aws-ec2-create.sh
+	./scripts/aws-ec2-create.sh
+
+# Run k3s setup on the EC2 instance (run this after SSH'ing in)
+aws-k3s-setup:
+	@echo "☁️  Running k3s setup..."
+	@chmod +x scripts/aws-k3s-setup.sh
+	sudo ./scripts/aws-k3s-setup.sh
+
+# Apply the AWS k3s overlay manifests
+aws-k3s-deploy:
+	@echo "☁️  Applying AWS k3s overlay manifests..."
+	kubectl apply -k deploy/aws-k3s/
+	@echo "✅ Manifests applied. Monitor with: make aws-k3s-status"
+
+# Show AWS k3s deployment status
+aws-k3s-status:
+	@echo "☁️  Delerium on k3s — status:"
+	@echo ""
+	@echo "--- Nodes ---"
+	kubectl get nodes
+	@echo ""
+	@echo "--- Pods ---"
+	kubectl get pods -n delerium
+	@echo ""
+	@echo "--- Services ---"
+	kubectl get svc -n delerium
+	@echo ""
+	@echo "--- Ingress ---"
+	kubectl get ingress -n delerium
+	@echo ""
+	@echo "--- Certificates ---"
+	-kubectl get certificate -n delerium 2>/dev/null
 	@echo ""

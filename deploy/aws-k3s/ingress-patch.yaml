@@ -1,0 +1,18 @@
+# Use Traefik (k3s default ingress controller) instead of nginx.
+# cert-manager handles TLS the same way — just update the ingressClassName.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: delerium-ingress
+  namespace: delerium
+  annotations:
+    # Remove nginx-specific annotations, add Traefik equivalents
+    nginx.ingress.kubernetes.io/proxy-body-size: null
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: null
+    nginx.ingress.kubernetes.io/proxy-send-timeout: null
+    nginx.ingress.kubernetes.io/proxy-read-timeout: null
+    traefik.ingress.kubernetes.io/buffering: |
+      maxRequestBodyBytes: 8388608
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+spec:
+  ingressClassName: traefik

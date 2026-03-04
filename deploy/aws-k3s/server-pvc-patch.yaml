@@ -1,0 +1,11 @@
+# Use k3s built-in local-path provisioner for persistent storage.
+# Data stored at /var/lib/rancher/k3s/storage/ on the EC2 host.
+# NOTE: This does NOT survive instance termination. For durability,
+# consider an EBS-backed StorageClass or regular backups.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: delerium-server-data
+  namespace: delerium
+spec:
+  storageClassName: local-path
