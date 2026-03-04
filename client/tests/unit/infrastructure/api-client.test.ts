@@ -292,6 +292,57 @@ describe('HttpApiClient', () => {
 
       await expect(client.createPaste(request)).rejects.toThrow('from JSON in text body');
     });
+
+    it('uses errorData.message when errorData.error is absent (json() succeeds)', async () => {
+      const request = {
+        ct: 'ct', iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
+      };
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        json: jest.fn().mockResolvedValue({ message: 'Validation failed' })
+      });
+      await expect(client.createPaste(request)).rejects.toThrow('Validation failed');
+    });
+
+    it('uses message field from text-body JSON when error field is absent', async () => {
+      const request = {
+        ct: 'ct', iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' }
+      };
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+        text: jest.fn().mockResolvedValue(JSON.stringify({ message: 'from message field' }))
+      });
+      await expect(client.createPaste(request)).rejects.toThrow('from message field');
+    });
+  });
+
+  describe('retrievePaste — generic 5xx with empty error field', () => {
+    it('uses generic message when json() succeeds but body.error is absent', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: jest.fn().mockResolvedValue({ message: 'no error field here' })
+      });
+      await expect(client.retrievePaste('abc123')).rejects.toThrow('Server error (503). Please try again later.');
+    });
+  });
+
+  describe('deletePaste — json() failure fallback', () => {
+    it('throws "Unknown error" when response.json() rejects during delete', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: jest.fn().mockRejectedValue(new Error('not json'))
+      });
+      await expect(client.deletePaste('abc123', 'token')).rejects.toThrow('Unknown error');
+    });
   });
 
 });
