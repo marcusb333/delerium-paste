@@ -1,7 +1,7 @@
 # Requires:
 #   - ingress-nginx controller running in the cluster
 #   - cert-manager installed + ClusterIssuers applied (k8s/cert-manager/cluster-issuer.yaml)
-#   - Replace "paste.example.com" with your actual domain (2 occurrences below)
+#   - Replace "test.delerium.cc" with your actual domain (2 occurrences below)
 #
 # Recommended workflow:
 #   1. Apply with letsencrypt-staging first, verify the untrusted cert arrives, then
@@ -23,10 +23,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - paste.example.com   # REPLACE with your domain
+        - test.delerium.cc   # REPLACE with your domain
       secretName: delerium-tls
   rules:
-    - host: paste.example.com   # REPLACE with your domain
+    - host: test.delerium.cc   # REPLACE with your domain
       http:
         paths:
           - path: /

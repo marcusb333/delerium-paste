@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local
 
 # Default target
 help:
@@ -75,6 +75,8 @@ help:
 	@echo "  make k8s-delete    - Delete all Kubernetes resources"
 	@echo "  make k8s-status    - Show pod/service/ingress status in the delerium namespace"
 	@echo "  make k8s-install-cert-manager - Install cert-manager + apply ClusterIssuers"
+	@echo "  make k8s-install-ingress     - Install ingress-nginx controller (Docker Desktop)"
+	@echo "  make k8s-local     - Local dev: install ingress + apply manifests + print instructions"
 	@echo "  make k8s-tls-prod  - Switch ingress from staging to production certificates"
 	@echo "  make k8s-cert-status - Check certificate/order status"
 	@echo ""
@@ -497,3 +499,27 @@ k8s-cert-status:
 	@echo ""
 	@echo "--- Orders ---"
 	kubectl get order -n delerium
+
+# Install ingress-nginx controller (Docker Desktop)
+k8s-install-ingress:
+	@echo "☸️  Installing ingress-nginx controller..."
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.1/deploy/static/provider/cloud/deploy.yaml
+	@echo "Waiting for ingress-nginx controller to be ready..."
+	kubectl wait --namespace ingress-nginx --for=condition=Ready pod -l app.kubernetes.io/component=controller --timeout=120s
+	@echo "✅ ingress-nginx installed"
+
+# Local dev: install ingress-nginx + apply manifests + print instructions
+k8s-local: k8s-install-ingress k8s-apply
+	@echo ""
+	@echo "============================================"
+	@echo "✅ Local Kubernetes stack is ready!"
+	@echo "============================================"
+	@echo ""
+	@echo "NodePort access (works now):"
+	@echo "  http://localhost:30080"
+	@echo ""
+	@echo "Ingress access (requires /etc/hosts entry):"
+	@echo "  1. Add this line to /etc/hosts:"
+	@echo "     127.0.0.1 test.delerium.cc"
+	@echo "  2. Then visit: http://test.delerium.cc"
+	@echo ""
