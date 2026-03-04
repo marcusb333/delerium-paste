@@ -125,17 +125,89 @@ describe('Storage Utilities', () => {
       const id2 = 'paste-2';
       const token1 = 'token-1';
       const token2 = 'token-2';
-      
+
       storeDeleteToken(id1, token1);
       storeDeleteToken(id2, token2);
-      
+
       expect(getDeleteToken(id1)).toBe(token1);
       expect(getDeleteToken(id2)).toBe(token2);
-      
+
       removeDeleteToken(id1);
-      
+
       expect(getDeleteToken(id1)).toBeNull();
       expect(getDeleteToken(id2)).toBe(token2);
+    });
+
+    it('storeDeleteToken: silently ignores when sessionStorage.setItem throws', () => {
+      const setItem = jest.spyOn(window.sessionStorage.__proto__, 'setItem')
+        .mockImplementationOnce(() => { throw new Error('QuotaExceeded'); });
+      expect(() => storeDeleteToken(testId, testToken)).not.toThrow();
+      setItem.mockRestore();
+    });
+
+    it('storeDeleteToken: silently ignores when localStorage.removeItem throws', () => {
+      const removeItem = jest.spyOn(window.localStorage.__proto__, 'removeItem')
+        .mockImplementationOnce(() => { throw new Error('SecurityError'); });
+      expect(() => storeDeleteToken(testId, testToken)).not.toThrow();
+      removeItem.mockRestore();
+    });
+
+    it('getDeleteToken: reads from localStorage when sessionStorage is unavailable', () => {
+      localStorage.setItem(`deleteToken_${testId}`, testToken);
+
+      const origDescriptor = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+      Object.defineProperty(window, 'sessionStorage', {
+        get() { throw new Error('SecurityError'); },
+        configurable: true,
+      });
+      try {
+        const result = getDeleteToken(testId);
+        expect(result).toBe(testToken);
+      } finally {
+        if (origDescriptor) Object.defineProperty(window, 'sessionStorage', origDescriptor);
+      }
+    });
+
+    it('getDeleteToken: returns null when both storages are unavailable', () => {
+      const origSession = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+      const origLocal = Object.getOwnPropertyDescriptor(window, 'localStorage');
+      Object.defineProperty(window, 'sessionStorage', {
+        get() { throw new Error('SecurityError'); }, configurable: true,
+      });
+      Object.defineProperty(window, 'localStorage', {
+        get() { throw new Error('SecurityError'); }, configurable: true,
+      });
+      try {
+        expect(getDeleteToken(testId)).toBeNull();
+      } finally {
+        if (origSession) Object.defineProperty(window, 'sessionStorage', origSession);
+        if (origLocal) Object.defineProperty(window, 'localStorage', origLocal);
+      }
+    });
+
+    it('getDeleteToken: migrates localStorage token even when sessionStorage.setItem throws', () => {
+      localStorage.setItem(`deleteToken_${testId}`, testToken);
+      const setItem = jest.spyOn(window.sessionStorage.__proto__, 'setItem')
+        .mockImplementationOnce(() => { throw new Error('QuotaExceeded'); });
+      const result = getDeleteToken(testId);
+      expect(result).toBe(testToken);
+      // Token should still be removed from localStorage even if migration fails
+      expect(localStorage.getItem(`deleteToken_${testId}`)).toBeNull();
+      setItem.mockRestore();
+    });
+
+    it('removeDeleteToken: silently ignores when sessionStorage.removeItem throws', () => {
+      storeDeleteToken(testId, testToken);
+      const removeItem = jest.spyOn(window.sessionStorage.__proto__, 'removeItem')
+        .mockImplementationOnce(() => { throw new Error('SecurityError'); });
+      expect(() => removeDeleteToken(testId)).not.toThrow();
+      removeItem.mockRestore();
+    });
+
+    it('removeDeleteToken: also removes from localStorage', () => {
+      localStorage.setItem(`deleteToken_${testId}`, testToken);
+      removeDeleteToken(testId);
+      expect(localStorage.getItem(`deleteToken_${testId}`)).toBeNull();
     });
   });
 });
