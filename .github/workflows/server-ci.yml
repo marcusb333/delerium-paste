@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - parity
     paths:
       - 'server/**'
       - 'MODULE.bazel'
