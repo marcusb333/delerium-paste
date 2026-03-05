@@ -25,6 +25,12 @@ COPY --from=builder /build/js/          /usr/share/nginx/html/js/
 COPY --from=builder /build/styles/      /usr/share/nginx/html/styles/
 COPY --from=builder /build/vendor/      /usr/share/nginx/html/vendor/
 
+# Copy nginx config (reverse proxy to backend)
+COPY reverse-proxy/nginx-dev.conf /etc/nginx/nginx.conf
+
 RUN chown -R nginx:nginx /usr/share/nginx/html
 
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1

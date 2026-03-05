@@ -1,4 +1,12 @@
+volumes:
+  pgdata:
+    driver: local
+
 services:
+  postgres:
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   server:
     image: marcusb333/delerium-server:v1.2.0-alpha
     build:
@@ -7,10 +15,11 @@ services:
     restart: unless-stopped
     environment:
       - DELETION_TOKEN_PEPPER=${DELETION_TOKEN_PEPPER}
-      - DATA_ENC_KEYRING_PATH=/data/keyring.json
+      - DB_PATH=jdbc:postgresql://postgres:5432/delerium
+      - DB_USER=delerium
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DATA_ENC_KEYRING_PATH=/app/keyring.json
       - DATA_ENC_ROTATION_DAYS=30
-    volumes:
-      - server-data:/data
     expose:
       - "8080"
     healthcheck:
@@ -23,7 +32,10 @@ services:
       - app-network
 
   web:
-    image: nginx:1.27-alpine
+    image: marcusb333/delerium-web:v1.2.0-alpha
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     restart: unless-stopped
     depends_on:
       server:
@@ -32,18 +44,9 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./client:/usr/share/nginx/html:ro
       - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
     networks:
       - app-network
     command: sh -c "rm -f /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
-
-volumes:
-  server-data:
-    driver: local
-
-networks:
-  app-network:
-    driver: bridge
