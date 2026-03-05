@@ -28,7 +28,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push server image
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -36,16 +36,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: marcusb333/delerium-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push web image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./web/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: marcusb333/delerium-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
