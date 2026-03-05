@@ -1,14 +1,13 @@
 # NetworkPolicy: lock down pod-to-pod traffic in the delerium namespace.
 #
 # Topology enforced:
-#   ingress-controller → web:80
-#   web                → server:8080
-#   server             → (no inbound except from web)
+#   ingress-controller → server:8080
+#   server             → postgres:5432
 #
 # Requires a CNI that supports NetworkPolicy (Calico, Cilium, Weave, etc.).
 
 ---
-# Deny all ingress to the server pod by default; only allow from the web pod.
+# Allow the ingress controller to reach the server pod on port 8080.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -22,62 +21,9 @@ spec:
     - Ingress
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              app: delerium-web
-      ports:
-        - protocol: TCP
-          port: 8080
-
----
-# Allow the web pod to reach the server pod (egress side of the same rule).
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: delerium-web-egress
-  namespace: delerium
-spec:
-  podSelector:
-    matchLabels:
-      app: delerium-web
-  policyTypes:
-    - Egress
-  egress:
-    # Allow DNS resolution
-    - ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    # Allow calls to the backend
-    - to:
-        - podSelector:
-            matchLabels:
-              app: delerium-server
-      ports:
-        - protocol: TCP
-          port: 8080
-
----
-# Allow the ingress controller to reach the web pod on port 80.
-# The ingress-nginx controller runs in the ingress-nginx namespace by default;
-# adjust the namespaceSelector label if yours differs.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: delerium-web-ingress
-  namespace: delerium
-spec:
-  podSelector:
-    matchLabels:
-      app: delerium-web
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
       ports:
         - protocol: TCP
-          port: 80
+          port: 8080
