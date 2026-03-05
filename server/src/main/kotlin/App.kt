@@ -28,8 +28,13 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import org.jetbrains.exposed.sql.Database
+import io.ktor.http.CacheControl
+import io.ktor.http.ContentType
+import io.ktor.server.http.content.staticFiles
+import io.ktor.server.response.respondText
 import java.security.SecureRandom
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -141,6 +146,10 @@ fun Application.module() {
         dataEncRotationDays = dataEncRotationDays,
         dataEncMigrateOnStartup = dataEncMigrateOnStartup
     )
+
+    val staticDir = System.getenv("STATIC_DIR")
+        ?: cfg.propertyOrNull("app.staticDir")?.getString()
+        ?: "/app/static"
 
     install(Compression)
     install(ContentNegotiation) {
@@ -258,6 +267,28 @@ fun Application.module() {
     }
 
     routing {
+        // Health check (non-API, for load balancers/probes)
+        get("/health") {
+            call.respondText("OK", ContentType.Text.Plain)
+        }
+
+        // API routes
         apiRoutes(repo, rl, pow, appCfg, failedAttemptTracker)
+
+        // Static files (served from filesystem directory)
+        val staticRoot = java.io.File(staticDir)
+        if (staticRoot.isDirectory) {
+            staticFiles("/", staticRoot) {
+                default("index.html")
+                cacheControl { url ->
+                    when {
+                        url.path.endsWith(".js") -> listOf(CacheControl.MaxAge(maxAgeSeconds = 31536000, visibility = CacheControl.Visibility.Public))
+                        url.path.endsWith(".css") -> listOf(CacheControl.MaxAge(maxAgeSeconds = 31536000, visibility = CacheControl.Visibility.Public))
+                        url.path.endsWith(".html") -> listOf(CacheControl.NoCache(null))
+                        else -> listOf(CacheControl.MaxAge(maxAgeSeconds = 3600, visibility = CacheControl.Visibility.Public))
+                    }
+                }
+            }
+        }
     }
 }
