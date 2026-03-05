@@ -144,7 +144,7 @@ jobs:
       - name: Wait for services to be healthy
         run: |
           echo "Waiting for services to start..."
-          sleep 30
+          sleep 60
 
           docker compose -f docker-compose.yml ps
 
@@ -160,20 +160,20 @@ jobs:
             exit 1
           fi
 
-          echo "Testing nginx health endpoint..."
-          NGINX_HEALTHY=false
+          echo "Testing server health endpoint..."
+          SERVER_HEALTHY=false
           for i in {1..5}; do
-            if timeout 5 curl -f http://localhost:8080 > /dev/null 2>&1; then
-              echo "Nginx is responding!"
-              NGINX_HEALTHY=true
+            if timeout 5 curl -f http://localhost/health > /dev/null 2>&1; then
+              echo "Server is responding!"
+              SERVER_HEALTHY=true
               break
             fi
             echo "Attempt $i failed, retrying in 2 seconds..."
             sleep 2
           done
 
-          if [ "$NGINX_HEALTHY" != "true" ]; then
-            echo "Nginx health check failed after 5 attempts"
+          if [ "$SERVER_HEALTHY" != "true" ]; then
+            echo "Server health check failed after 5 attempts"
             docker compose -f docker-compose.yml logs
             exit 1
           fi
