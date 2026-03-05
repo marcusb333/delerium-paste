@@ -89,13 +89,14 @@ for arg in "$@"; do
     esac
 done
 
-# Detect docker-compose command
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="sudo docker-compose"
-elif sudo docker compose version &> /dev/null 2>&1; then
+# Detect docker compose command (prefer v2 plugin over v1 standalone)
+if sudo docker compose version &> /dev/null 2>&1; then
     DOCKER_COMPOSE="sudo docker compose"
+elif command -v docker-compose &> /dev/null; then
+    echo -e "${YELLOW}Warning: Using legacy docker-compose v1. Consider upgrading to Docker Compose V2.${NC}"
+    DOCKER_COMPOSE="sudo docker-compose"
 else
-    echo -e "${RED}Error: Neither 'docker-compose' nor 'docker compose' found${NC}"
+    echo -e "${RED}Error: Neither 'docker compose' nor 'docker-compose' found${NC}"
     exit 1
 fi
 
