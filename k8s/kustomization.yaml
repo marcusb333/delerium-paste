@@ -3,13 +3,9 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - server/secret.yaml
   - server/pvc.yaml
   - server/deployment.yaml
   - server/service.yaml
-  - web/configmap.yaml
-  - web/deployment.yaml
-  - web/service.yaml
   - network-policy.yaml
   - pdb.yaml
   - ingress.yaml

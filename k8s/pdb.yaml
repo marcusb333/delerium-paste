@@ -1,25 +1,8 @@
-# PodDisruptionBudgets — ensures pods survive voluntary disruptions
+# PodDisruptionBudget — ensures the server pod survives voluntary disruptions
 # (node drains, cluster upgrades) without downtime.
 #
-# Both services run at replicas: 1, so maxUnavailable: 1 is used rather than
+# The server runs at replicas: 1, so maxUnavailable: 1 is used rather than
 # minAvailable: 1.  minAvailable: 1 with replicas: 1 would block all drains.
-
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: delerium-web-pdb
-  namespace: delerium
-spec:
-  maxUnavailable: 1
-  selector:
-    matchLabels:
-      app: delerium-web
-
----
-# Note: the server is constrained to replicas: 1 (SQLite single-writer).
-# The PDB allows it to be evicted during drains while preventing accidental
-# simultaneous disruptions if the replica count is later raised.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

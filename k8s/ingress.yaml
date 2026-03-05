@@ -33,6 +33,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: delerium-web
+                name: delerium-server
                 port:
-                  number: 80
+                  number: 8080
