@@ -14,7 +14,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Color codes for output
@@ -240,7 +240,7 @@ if [ "$SKIP_SSL" = false ]; then
                 echo -e "${YELLOW}  Setting up SSL for domain: $DOMAIN${NC}"
 
                 # Stop containers to free port 80
-                $DOCKER_COMPOSE -f $COMPOSE_FILE down 2>/dev/null || true
+                $DOCKER_COMPOSE $COMPOSE_FILES down 2>/dev/null || true
 
                 EMAIL="${SSL_EMAIL:-admin@$DOMAIN}"
 
@@ -346,12 +346,12 @@ mkdir -p backups ssl
 
 if [ "$NO_BACKUP" = false ]; then
     echo -e "${YELLOW}Checking for existing database...${NC}"
-    if $DOCKER_COMPOSE -f $COMPOSE_FILE ps 2>/dev/null | grep -qE "(Up|running)"; then
+    if $DOCKER_COMPOSE $COMPOSE_FILES ps 2>/dev/null | grep -qE "(Up|running)"; then
         echo -e "${YELLOW}Creating backup...${NC}"
         BACKUP_FILE="backups/delerium_pg_${TIMESTAMP}.sql.gz"
 
         # Dump PostgreSQL via the running container
-        if $DOCKER_COMPOSE -f $COMPOSE_FILE exec -T postgres pg_dump -U delerium delerium 2>/dev/null | gzip > "$BACKUP_FILE"; then
+        if $DOCKER_COMPOSE $COMPOSE_FILES exec -T postgres pg_dump -U delerium delerium 2>/dev/null | gzip > "$BACKUP_FILE"; then
             if [ -s "$BACKUP_FILE" ]; then
                 echo -e "${GREEN}Backup created: $BACKUP_FILE${NC}"
             else
@@ -372,12 +372,12 @@ fi
 
 if [ "$PULL_IMAGES" = true ]; then
     echo -e "${YELLOW}Pulling Docker images from registry...${NC}"
-    $DOCKER_COMPOSE -f $COMPOSE_FILE pull
+    $DOCKER_COMPOSE $COMPOSE_FILES pull
     echo -e "${GREEN}Docker images pulled${NC}"
     echo ""
 elif [ "$NO_DOCKER_BUILD" = false ]; then
     echo -e "${YELLOW}Building Docker images (${DOCKER_ARCH})...${NC}"
-    $DOCKER_COMPOSE -f $COMPOSE_FILE build --parallel 2>&1 | grep -v "DEPRECATED" || true
+    $DOCKER_COMPOSE $COMPOSE_FILES build --parallel 2>&1 | grep -v "DEPRECATED" || true
     echo -e "${GREEN}Docker images built${NC}"
     echo ""
 else
@@ -388,12 +388,12 @@ fi
 # ── Deploy ──────────────────────────────────────────────────────────
 
 echo -e "${YELLOW}Stopping old containers...${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE down
+$DOCKER_COMPOSE $COMPOSE_FILES down
 echo -e "${GREEN}Old containers stopped${NC}"
 echo ""
 
 echo -e "${YELLOW}Starting new containers...${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE up -d
+$DOCKER_COMPOSE $COMPOSE_FILES up -d
 echo -e "${GREEN}Containers started${NC}"
 echo ""
 
@@ -434,7 +434,7 @@ echo ""
 
 # Show service status
 echo -e "${BLUE}Service Status:${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE ps
+$DOCKER_COMPOSE $COMPOSE_FILES ps
 echo ""
 
 # Test API endpoint
