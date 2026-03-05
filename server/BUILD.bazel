@@ -20,6 +20,7 @@ kt_jvm_library(
         "@maven//:io_ktor_ktor_server_call_logging_jvm",
         "@maven//:io_ktor_ktor_server_rate_limit_jvm",
         "@maven//:io_ktor_ktor_server_status_pages_jvm",
+        "@maven//:io_ktor_ktor_server_host_common_jvm",
         "@maven//:org_apache_logging_log4j_log4j_core",
         "@maven//:org_apache_logging_log4j_log4j_slf4j2_impl",
         "@maven//:org_jetbrains_exposed_exposed_core",

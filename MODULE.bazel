@@ -31,6 +31,7 @@ maven.install(
         "io.ktor:ktor-server-call-logging-jvm:3.2.0",
         "io.ktor:ktor-server-rate-limit-jvm:3.2.0",
         "io.ktor:ktor-server-status-pages-jvm:3.2.0",
+        "io.ktor:ktor-server-host-common-jvm:3.2.0",
         # Netty overrides (security: 4.2.8.Final fixes CVE-2025-58057, CVE-2025-67735, CVE-2025-58056)
         "io.netty:netty-codec-http2:4.2.8.Final",
         "io.netty:netty-handler:4.2.8.Final",
