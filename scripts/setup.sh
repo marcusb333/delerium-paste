@@ -220,7 +220,11 @@ else
 fi
 
 # Check Docker Compose
-if command -v docker-compose > /dev/null 2>&1 || docker compose version > /dev/null 2>&1; then
+if docker compose version > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+    echo -e "${GREEN}? Docker Compose is available${NC}"
+elif command -v docker-compose > /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker-compose"
     echo -e "${GREEN}? Docker Compose is available${NC}"
 else
     echo -e "${RED}? Docker Compose is not available${NC}"
@@ -246,7 +250,7 @@ if [ "$START_SERVICES" = "yes" ] || [ "$START_SERVICES" = "y" ]; then
     echo -e "${BLUE}?? Starting Docker containers...${NC}"
     echo ""
     
-    docker-compose up -d --build
+    $DOCKER_COMPOSE up -d --build
     
     echo ""
     echo -e "${BLUE}? Waiting for services to start...${NC}"
@@ -272,7 +276,7 @@ if [ "$START_SERVICES" = "yes" ] || [ "$START_SERVICES" = "y" ]; then
     
     echo ""
     echo -e "${BOLD}?? Container Status:${NC}"
-    docker-compose ps
+    $DOCKER_COMPOSE ps
     echo ""
 fi
 
@@ -293,10 +297,10 @@ if [ "$START_SERVICES" = "yes" ] || [ "$START_SERVICES" = "y" ]; then
 fi
 
 echo -e "${BOLD}?? Useful commands:${NC}"
-echo "   docker-compose up -d    - Start services"
-echo "   docker-compose down     - Stop services"
-echo "   docker-compose logs     - View logs"
-echo "   docker-compose ps       - Check status"
+echo "   docker compose up -d    - Start services"
+echo "   docker compose down     - Stop services"
+echo "   docker compose logs     - View logs"
+echo "   docker compose ps       - Check status"
 echo ""
 
 echo -e "${BOLD}?? Next steps:${NC}"
