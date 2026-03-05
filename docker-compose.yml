@@ -39,10 +39,10 @@ services:
       - DB_PASSWORD=${POSTGRES_PASSWORD:-delerium}
       - DATA_ENC_KEYRING_PATH=/app/keyring.json
       - DATA_ENC_ROTATION_DAYS=30
-    expose:
-      - "8080"
+    ports:
+      - "80:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -51,30 +51,6 @@ services:
       resources:
         reservations:
           memory: 256M
-    networks:
-      - app-network
-
-  web:
-    image: marcusb333/delerium-web:v1.2.0-alpha
-    build:
-      context: .
-      dockerfile: ./web/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      server:
-        condition: service_healthy
-    ports:
-      - "80:80"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        reservations:
-          memory: 64M
     networks:
       - app-network
 
