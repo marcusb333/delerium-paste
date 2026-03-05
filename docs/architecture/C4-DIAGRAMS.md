@@ -41,20 +41,16 @@ graph TB
     end
     
     subgraph "Delirium System"
-        WebServer["?? Web Server<br/>(Container: Nginx)<br/>Serves static files and<br/>reverse proxies API"]
-        
-        API["? API Application<br/>(Container: Ktor/Kotlin)<br/>REST API for paste CRUD,<br/>PoW verification, rate limiting"]
-        
-        DB[("?? Database<br/>(Container: SQLite)<br/>Stores encrypted pastes<br/>with metadata")]
+        API["? Ktor Application<br/>(Container: Ktor/Kotlin)<br/>Serves static frontend +<br/>REST API for paste CRUD,<br/>PoW verification, rate limiting"]
+
+        DB[("?? Database<br/>(Container: PostgreSQL)<br/>Stores encrypted pastes<br/>with metadata")]
     end
-    
-    Browser -->|"Retrieves SPA<br/>[HTTPS/HTTP]"| WebServer
-    Browser -->|"API calls<br/>[HTTPS/JSON]"| WebServer
-    WebServer -->|"Proxies API<br/>[HTTP/JSON]"| API
+
+    Browser -->|"Retrieves SPA<br/>[HTTPS/HTTP]"| API
+    Browser -->|"API calls<br/>[HTTPS/JSON]"| API
     API -->|"Reads/writes<br/>[SQL]"| DB
-    
+
     style Browser fill:#1168bd,stroke:#0b4884,color:#ffffff
-    style WebServer fill:#1168bd,stroke:#0b4884,color:#ffffff
     style API fill:#1168bd,stroke:#0b4884,color:#ffffff
     style DB fill:#1168bd,stroke:#0b4884,color:#ffffff
 ```
@@ -62,10 +58,9 @@ graph TB
 **Technology Choices:**
 
 - **Frontend**: TypeScript SPA with Web Crypto API
-- **Reverse Proxy**: Nginx for static files and API routing
-- **Backend**: Ktor (Kotlin) REST API on JVM
-- **Database**: SQLite with Exposed SQL library
-- **Deployment**: Docker Compose orchestration
+- **Backend**: Ktor (Kotlin) REST API on JVM, also serves static frontend files from `/app/static/`
+- **Database**: PostgreSQL with Exposed SQL library
+- **Deployment**: Docker Compose orchestration (single `delerium-server` image + PostgreSQL)
 
 ---
 
@@ -438,36 +433,35 @@ graph TB
     subgraph "Production Environment"
         subgraph "Docker Host"
             subgraph "Docker Network"
-                Nginx["?? Nginx Container<br/>Port 80/443<br/>? Static file serving<br/>? Reverse proxy<br/>? SSL termination"]
-                
-                Ktor["? Ktor Container<br/>Port 8080 (internal)<br/>? REST API<br/>? PoW verification<br/>? Rate limiting"]
-                
-                Volume[("?? Docker Volume<br/>Persistent storage<br/>SQLite database")]
+                Ktor["? Ktor Container<br/>Port 8080<br/>? Static frontend serving<br/>? REST API<br/>? PoW verification<br/>? Rate limiting"]
+
+                Postgres[("?? PostgreSQL<br/>Port 5432<br/>Stores encrypted pastes")]
+
+                Volume[("?? Docker Volume<br/>Persistent storage<br/>PostgreSQL data")]
             end
         end
-        
-        Certbot["?? Let's Encrypt<br/>(External Service)<br/>SSL certificate<br/>provisioning"]
+
+        LB["?? Load Balancer / Ingress<br/>(External)<br/>TLS termination"]
     end
-    
+
     Internet["?? Internet"]
-    
-    Internet -->|"HTTPS (443)"| Nginx
-    Internet -->|"HTTP (80)"| Nginx
-    Nginx -->|"HTTP (8080)"| Ktor
-    Ktor -->|"Read/Write"| Volume
-    Nginx -.->|"Certificate renewal"| Certbot
-    
-    style Nginx fill:#51cf66,stroke:#2f9e44,color:#ffffff
+
+    Internet -->|"HTTPS (443)"| LB
+    LB -->|"HTTP (8080)"| Ktor
+    Ktor -->|"SQL"| Postgres
+    Postgres -->|"Read/Write"| Volume
+
     style Ktor fill:#4dabf7,stroke:#1c7ed6,color:#ffffff
+    style Postgres fill:#51cf66,stroke:#2f9e44,color:#ffffff
     style Volume fill:#ffd43b,stroke:#fab005,color:#000000
-    style Certbot fill:#9775fa,stroke:#7950f2,color:#ffffff
+    style LB fill:#9775fa,stroke:#7950f2,color:#ffffff
 ```
 
 **Deployment Configuration:**
 
-- **Development**: `docker-compose.yml` (port 8080, HTTP)
-- **Production**: `docker-compose.prod.yml` (ports 80/443, HTTPS)
-- **Secure**: `docker-compose.secure.yml` (HTTPS with Let's Encrypt)
+- **Development**: `docker-compose.yml` (port 8080, HTTP) — single Ktor server + PostgreSQL
+- **Production**: `docker-compose.prod.yml` (port 8080 behind TLS proxy)
+- **Kubernetes**: Ingress terminates TLS, routes to `delerium-server:8080`
 
 ---
 
@@ -482,33 +476,31 @@ sequenceDiagram
     participant Crypto as Web Crypto API
     participant PoW as PoW Solver
     participant UI as Frontend UI
-    participant Nginx
     participant API as Ktor API
     participant DB as Database
-    
+
     User->>Browser: Enters paste content + settings
     User->>UI: Clicks "Save"
-    
+
     activate UI
     UI->>UI: Validate content size, expiration
-    
+
     UI->>Crypto: Generate random key & IV
     Crypto-->>UI: Returns key & IV
-    
+
     UI->>Crypto: Encrypt(content, key, IV)
     Note over Crypto: AES-GCM 256-bit encryption
     Crypto-->>UI: Returns ciphertext
-    
+
     UI->>API: GET /api/pow
     API-->>UI: Returns PoW challenge
-    
+
     UI->>PoW: Solve challenge in WebWorker
     Note over PoW: Find nonce with N leading zero bits
     PoW-->>UI: Returns solution nonce
-    
-    UI->>Nginx: POST /api/pastes<br/>{ct, iv, meta, pow}
-    Nginx->>API: Forward request
-    
+
+    UI->>API: POST /api/pastes<br/>{ct, iv, meta, pow}
+
     activate API
     API->>API: Verify PoW solution
     API->>API: Check rate limit
@@ -516,10 +508,8 @@ sequenceDiagram
     API->>API: Generate paste ID & delete token
     API->>DB: INSERT encrypted paste
     DB-->>API: Success
-    API-->>Nginx: {id, deleteToken}
+    API-->>UI: {id, deleteToken}
     deactivate API
-    
-    Nginx-->>UI: Response
     
     UI->>UI: Build share URL:<br/>domain.com/view?p=ID#key:iv
     Note over UI: Key & IV in fragment<br/>(never sent to server)
@@ -545,7 +535,7 @@ sequenceDiagram
 | Level | Name | Audience | Description |
 |-------|------|----------|-------------|
 | 1 | System Context | Everyone | Delirium in context of users and external systems |
-| 2 | Container | Technical people | High-level tech choices (Nginx, Ktor, SQLite) |
+| 2 | Container | Technical people | High-level tech choices (Ktor, PostgreSQL) |
 | 3 | Component | Developers | Internal structure of containers |
 | 4 | Code | Developers | Class-level design of specific modules |
 

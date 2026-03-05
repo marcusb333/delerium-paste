@@ -18,7 +18,7 @@ make dev-watch
 
 This single command:
 1. Builds the TypeScript client
-2. Starts Docker services (server + web)
+2. Starts Docker services (server + postgres)
 3. Enables Docker watch for automatic file syncing
 4. Starts TypeScript watch for automatic recompilation
 5. Provides live-reloading for both client and server changes
@@ -26,13 +26,15 @@ This single command:
 ## What Gets Synced?
 
 ### Client Files (Instant Sync)
-The following client files are automatically synced to the nginx container:
+The following client files are automatically synced to the server container (which serves
+static files from `/app/static/`):
 - `client/js/` → Compiled JavaScript files
 - `client/styles/` → CSS files
 - `client/*.html` → HTML pages (index, view, delete)
 - `client/favicon.svg` → Favicon
 - `client/vendor/` → Vendored libraries
 
+In dev mode, `./client/` is volume-mounted to `/app/static/` for hot-reload.
 **Changes are reflected immediately** - just refresh your browser!
 
 ### Server Files (Rebuild on Change)
@@ -53,13 +55,12 @@ Server changes trigger a container rebuild:
 
 2. Open the application in your browser:
    ```bash
-   http://localhost:8080  # Frontend (nginx)
-   http://localhost:8081  # Backend API (direct)
+   http://localhost:8080  # Frontend + API (Ktor server)
    ```
 
 3. Edit files:
-   - **Client TypeScript** (`client/src/*.ts`): TypeScript watch compiles → Docker watch syncs → refresh browser
-   - **Client HTML/CSS**: Edited → Docker watch syncs → refresh browser
+   - **Client TypeScript** (`client/src/*.ts`): TypeScript watch compiles → volume mount reflects changes → refresh browser
+   - **Client HTML/CSS**: Edited → volume mount reflects changes → refresh browser
    - **Server Kotlin**: Edited → Docker watch rebuilds container → wait ~60s
 
 4. Stop development environment:
@@ -109,14 +110,6 @@ The watch configuration is defined in `docker-compose.dev.yml`:
 
 ```yaml
 services:
-  web:
-    develop:
-      watch:
-        - action: sync
-          path: ./client/js
-          target: /usr/share/nginx/html/js
-        # ... more sync rules
-
   server:
     develop:
       watch:
@@ -125,6 +118,9 @@ services:
           target: /app/src
         # ... more rebuild rules
 ```
+
+In dev mode, client files are served via a volume mount (`./client/:/app/static/`)
+so no Docker watch sync rules are needed for frontend files.
 
 ### Watch Actions
 
@@ -182,13 +178,12 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
 docker compose -f docker-compose.yml -f docker-compose.dev.yml build server
 ```
 
-### Port conflicts (8080 or 8081 already in use)
+### Port conflicts (8080 already in use)
 
 **Stop conflicting services**:
 ```bash
 # Find process using port
 lsof -i :8080
-lsof -i :8081
 
 # Stop Delirium services
 make stop

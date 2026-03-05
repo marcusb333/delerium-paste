@@ -356,8 +356,8 @@ spec:
 | Component | AMD64 | ARM64 | Notes |
 |-----------|-------|-------|-------|
 | Server (Kotlin/JVM) | ✅ | ✅ | Eclipse Temurin JRE 25 supports both |
-| Nginx (Web) | ✅ | ✅ | Official nginx:alpine image is multi-arch |
-| Client (Static) | ✅ | ✅ | Architecture-independent (served by nginx) |
-| Database (SQLite) | ✅ | ✅ | File-based, architecture-independent |
+| Client (Static) | ✅ | ✅ | Architecture-independent (served by Ktor from `/app/static/`) |
+| Database (PostgreSQL) | ✅ | ✅ | Official postgres image is multi-arch |
 
-All components are fully supported on both AMD64 and ARM64 architectures.
+The single `delerium-server` image contains both the Ktor backend and the static
+frontend files. There is no separate web/Nginx container.
