@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue build-web-image push-web-image k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
 
 # Default target
 help:
@@ -62,8 +62,6 @@ help:
 	@echo ""
 	@echo "🐳 Docker:"
 	@echo "  make build-server-image - Build server Docker image locally (used by make start if not pulled)"
-	@echo "  make build-web-image    - Build web (nginx+client) Docker image locally"
-	@echo "  make push-web-image VERSION=v1.0.9 - Build and push web image to Docker Hub"
 	@echo "  make deploy-full   - Full pipeline: clean, build, test, and deploy"
 	@echo "  make build-multiarch - Build multi-architecture Docker images locally"
 	@echo "  make push-multiarch - Build and push multi-architecture images to registry"
@@ -396,32 +394,9 @@ release-continue:
 	@chmod +x scripts/release.sh
 	./scripts/release.sh --continue
 
-# Build web Docker image locally (nginx + compiled TypeScript client)
-build-web-image:
-	@echo "🐳 Building web image locally..."
-	docker compose build web
-	@echo "✅ Web image built (marcusb333/delerium-web:latest)"
-
-# Build and push web image to Docker Hub with version tag
-# Usage: make push-web-image VERSION=v1.0.9
-push-web-image:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "❌ VERSION required. Usage: make push-web-image VERSION=v1.0.9"; \
-		exit 1; \
-	fi
-	@echo "🐳 Building web image (no cache)..."
-	docker compose build --no-cache web
-	@echo "🏷️  Tagging $(VERSION)..."
-	docker tag marcusb333/delerium-web:latest marcusb333/delerium-web:$(VERSION)
-	@echo "📤 Pushing to Docker Hub..."
-	docker push marcusb333/delerium-web:$(VERSION)
-	docker push marcusb333/delerium-web:latest
-	@echo "✅ Pushed marcusb333/delerium-web:$(VERSION)"
-
 # Apply all Kubernetes manifests via kustomize
 k8s-apply:
 	@echo "☸️  Applying Kubernetes manifests..."
-	@echo "⚠️  Ensure k8s/server/secret.yaml has a real DELETION_TOKEN_PEPPER before running."
 	kubectl apply -k k8s/
 	@echo "✅ Manifests applied. Monitor with: make k8s-status"
 
