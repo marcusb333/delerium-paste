@@ -19,14 +19,10 @@ k8s/
 ├── network-policy.yaml         # Pod-to-pod traffic restrictions
 ├── pdb.yaml                    # PodDisruptionBudgets
 ├── server/
-│   ├── deployment.yaml         # Kotlin/Ktor backend (replicas: 1, SQLite)
-│   ├── service.yaml            # ClusterIP on port 8080
-│   ├── pvc.yaml                # 5 Gi PersistentVolumeClaim for SQLite data
+│   ├── deployment.yaml         # Ktor backend + static frontend (replicas: 1)
+│   ├── service.yaml            # ClusterIP on port 8080 (NodePort 30080 for local dev)
+│   ├── pvc.yaml                # 5 Gi PersistentVolumeClaim for data
 │   └── secret.yaml             # Secret template — fill in before applying
-├── web/
-│   ├── deployment.yaml         # Nginx static frontend + API proxy
-│   ├── service.yaml            # NodePort on port 80 (nodePort: 30080)
-│   └── configmap.yaml          # nginx.conf (proxies /api/ to the server service)
 └── cert-manager/
     └── cluster-issuer.yaml     # Let's Encrypt staging + prod ClusterIssuers
 ```
@@ -54,7 +50,7 @@ kubectl apply -f k8s/server/secret.yaml
 kubectl apply -k k8s/
 ```
 
-After a minute or two `kubectl get pods -n delerium` should show both pods Running.
+After a minute or two `kubectl get pods -n delerium` should show the server pod Running.
 
 ## Step-by-Step Walkthrough
 
@@ -138,14 +134,15 @@ kubectl describe certificate delerium-tls -n delerium
 Internet → ingress-nginx (port 443/80)
              │  TLS terminated by ingress
              ▼
-         delerium-web (nginx, port 80)
-             │  proxies /api/* requests
-             ▼
          delerium-server (Ktor, port 8080)
+             │  serves static frontend + API
              │  reads/writes
              ▼
-         PersistentVolume (/data/pastes.db)
+         PersistentVolume (/data/)
 ```
+
+The Ktor server serves both the static frontend files (from `/app/static/`) and
+the REST API. There is no separate Nginx/web container.
 
 ### Network Policies
 
@@ -153,33 +150,30 @@ Internet → ingress-nginx (port 443/80)
 
 | Source | Destination | Port |
 |--------|-------------|------|
-| ingress-nginx namespace | delerium-web | 80 |
-| delerium-web | delerium-server | 8080 |
+| ingress-nginx namespace | delerium-server | 8080 |
 | (everything else) | (blocked) | — |
 
 Requires a CNI that enforces NetworkPolicy (Calico, Cilium, Weave, etc.).
 
-### SQLite Constraint
+### Database Constraint
 
-The server deployment uses `strategy: Recreate` and `replicas: 1`. SQLite does
-not support concurrent writers — do not increase replicas without first
-migrating to a client-server database.
+The server deployment uses `strategy: Recreate` and `replicas: 1`. Do not
+increase replicas without ensuring the database backend supports concurrent
+writers.
 
 ### PodDisruptionBudgets
 
-Both workloads have PDBs with `maxUnavailable: 1`, allowing node drains and
+The server workload has a PDB with `maxUnavailable: 1`, allowing node drains and
 cluster upgrades without blocking eviction.
 
 ## Updating to a New Image Version
 
-Edit the `image:` tag in `k8s/server/deployment.yaml` and/or
-`k8s/web/deployment.yaml`, then re-apply:
+Edit the `image:` tag in `k8s/server/deployment.yaml`, then re-apply:
 
 ```bash
 kubectl apply -k k8s/
 # Server uses Recreate strategy — old pod stops before new one starts
 kubectl rollout status deployment/delerium-server -n delerium
-kubectl rollout status deployment/delerium-web -n delerium
 ```
 
 ## Backup
@@ -196,7 +190,7 @@ Or use a volume snapshot if your storage class supports it.
 
 ## Local Development (Docker Desktop)
 
-For local development on Docker Desktop, the web service is exposed as a NodePort
+For local development on Docker Desktop, the server service is exposed as a NodePort
 on port 30080, so you don't need `kubectl port-forward` (which drops on sleep/restart).
 
 ### Quick Start
@@ -252,7 +246,7 @@ Both methods survive Mac sleep/wake cycles — no need to restart port-forward.
 |---------|-------|
 | Pods not starting | `kubectl describe pod -n delerium <pod>` — check events |
 | Server pod `CrashLoopBackOff` | Check logs: `kubectl logs -n delerium deployment/delerium-server` |
-| 502/504 from ingress | Verify web pod is running; check nginx proxy config in ConfigMap |
+| 502/504 from ingress | Verify server pod is running; check ingress backend config |
 | Certificate stuck `Pending` | `kubectl describe certificaterequest -n delerium` — check ACME challenge; verify DNS |
 | Staging cert, need production | Follow TLS workflow above to switch ClusterIssuer and delete old secret |
 | PVC `Pending` | Cluster may lack a default StorageClass; set `storageClassName` in `k8s/server/pvc.yaml` |

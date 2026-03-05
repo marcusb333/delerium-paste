@@ -183,9 +183,8 @@ make dev
 ```
 
 This starts:
-- Backend in Docker containers
+- The Ktor server in Docker (serves both API and static frontend)
 - TypeScript watch mode for automatic recompilation
-- Nginx serving your client files
 
 Access the app at `http://localhost:8080` and edit files - TypeScript will automatically recompile on save.
 

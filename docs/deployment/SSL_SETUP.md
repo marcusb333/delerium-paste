@@ -79,24 +79,16 @@ chmod 644 ssl/fullchain.pem
 chmod 600 ssl/privkey.pem
 ```
 
-## Step 5: Update Nginx Configuration
+## Step 5: Configure TLS Termination
 
-Update the SSL config with your domain:
+Since the Ktor server handles both the API and static frontend, you need a TLS
+termination layer in front of it. Options include:
 
-```bash
-cd ~/delerium/reverse-proxy
+- **Kubernetes Ingress** with cert-manager (recommended for K8s deployments)
+- **External reverse proxy** (nginx, Caddy, Traefik) that forwards to `localhost:8080`
 
-# Backup current config
-cp nginx.conf nginx.conf.backup
-
-# Copy the SSL-ready config
-cp nginx-ssl.conf nginx.conf
-
-# Replace YOUR_DOMAIN_HERE with your actual domain
-sed -i 's/YOUR_DOMAIN_HERE/YOUR_DOMAIN.com/g' nginx.conf
-```
-
-**Or manually edit** `reverse-proxy/nginx.conf` and replace `YOUR_DOMAIN_HERE` with your domain.
+If using an external nginx reverse proxy, configure it to forward all traffic to
+the Ktor server on port 8080.
 
 ## Step 6: Update Docker Compose
 
