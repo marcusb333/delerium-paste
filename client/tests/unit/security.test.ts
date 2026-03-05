@@ -5,7 +5,6 @@
  * - Password encryption/decryption (ArrayBuffer-based)
  * - PBKDF2 key derivation
  * - Security utilities
- * - Safe display functions
  * - Error message handling
  */
 
@@ -18,7 +17,6 @@ import {
   generateSalt,
   encryptWithPassword,
   decryptWithPassword,
-  safeDisplayContent,
   deriveDeleteAuth,
 } from '../../src/security.js';
 
@@ -154,33 +152,6 @@ describe('ERROR_MESSAGES', () => {
     expect(ERROR_MESSAGES.SERVER_ERROR).toBeTruthy();
     expect(ERROR_MESSAGES.ENCRYPTION_ERROR).toBeTruthy();
     expect(ERROR_MESSAGES.DECRYPTION_ERROR).toBeTruthy();
-  });
-});
-
-describe('safeDisplayContent', () => {
-  it('should set textContent and preserve whitespace', () => {
-    const element = document.createElement('div');
-    safeDisplayContent(element, 'Test\nContent');
-    
-    expect(element.textContent).toBe('Test\nContent');
-    expect(element.style.whiteSpace).toBe('pre-wrap');
-    expect(element.style.wordWrap).toBe('break-word');
-  });
-
-  it('should handle empty content', () => {
-    const element = document.createElement('div');
-    safeDisplayContent(element, '');
-    
-    expect(element.textContent).toBe('');
-    expect(element.style.whiteSpace).toBe('pre-wrap');
-  });
-
-  it('should handle special characters', () => {
-    const element = document.createElement('div');
-    safeDisplayContent(element, '<script>alert("xss")</script>');
-    
-    expect(element.textContent).toBe('<script>alert("xss")</script>');
-    expect(element.innerHTML).not.toContain('<script>');
   });
 });
 

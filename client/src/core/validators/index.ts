@@ -27,16 +27,6 @@ export const MAX_EXPIRATION_MINUTES = 7 * 24 * 60;
 export const MIN_EXPIRATION_MINUTES = 1;
 
 /**
- * Maximum view count
- */
-export const MAX_VIEW_COUNT = 100;
-
-/**
- * Minimum view count
- */
-export const MIN_VIEW_COUNT = 1;
-
-/**
  * Minimum password length
  */
 export const MIN_PASSWORD_LENGTH = 8;
@@ -97,29 +87,6 @@ export function validateExpiration(minutes: number): ValidationResult {
   
   if (minutes > MAX_EXPIRATION_MINUTES) {
     errors.push(`Expiration cannot exceed ${MAX_EXPIRATION_MINUTES} minutes (7 days)`);
-  }
-  
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
-}
-
-/**
- * Validate view count without analyzing content
- * 
- * @param views Maximum number of views
- * @returns Validation result
- */
-export function validateViewCount(views: number): ValidationResult {
-  const errors: string[] = [];
-  
-  if (!Number.isInteger(views) || views < 1) {
-    errors.push("View count must be at least 1");
-  }
-  
-  if (views > 100) {
-    errors.push("View count cannot exceed 100");
   }
   
   return {

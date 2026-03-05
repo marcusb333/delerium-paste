@@ -3,7 +3,6 @@
  * 
  * This module provides security functions that maintain the zero-knowledge principle:
  * - Memory security utilities
- * - Safe display utilities
  * - Error handling
  * - Password-based encryption
  * - Security headers and policies
@@ -51,26 +50,6 @@ export function secureClearBuffer(buffer: ArrayBuffer): void {
     // correct and eliminates any chance a JIT treats the writes as dead code.
     crypto.getRandomValues(new Uint8Array(buffer));
   }
-}
-
-// ============================================================================
-// SAFE DISPLAY UTILITIES
-// ============================================================================
-
-/**
- * Safely display content without executing any code
- * Uses textContent to prevent XSS while maintaining privacy
- * 
- * @param element DOM element to update
- * @param content Content to display
- */
-export function safeDisplayContent(element: HTMLElement, content: string): void {
-  // Use textContent to prevent XSS - it doesn't execute HTML/JS
-  element.textContent = content;
-  
-  // Preserve whitespace and formatting
-  element.style.whiteSpace = 'pre-wrap';
-  element.style.wordWrap = 'break-word';
 }
 
 // ============================================================================
