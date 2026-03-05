@@ -5,7 +5,7 @@
 #      kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
 #      kubectl wait --namespace cert-manager --for=condition=Ready pod --all --timeout=120s
 #
-#   2. Replace REPLACE_WITH_YOUR_EMAIL in both issuers below.
+#   2. Replace admin@delerium.cc in both issuers below.
 #
 # Apply this file AFTER cert-manager is ready:
 #   kubectl apply -f k8s/cert-manager/cluster-issuer.yaml
@@ -23,7 +23,7 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: REPLACE_WITH_YOUR_EMAIL
+    email: admin@delerium.cc
     privateKeySecretRef:
       name: letsencrypt-staging-key
     solvers:
@@ -39,7 +39,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: REPLACE_WITH_YOUR_EMAIL
+    email: admin@delerium.cc
     privateKeySecretRef:
       name: letsencrypt-prod-key
     solvers:

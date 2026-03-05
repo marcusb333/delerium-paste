@@ -8,6 +8,7 @@
 *.crt
 secrets/
 .secrets
+k8s/server/secret.yaml
 
 # Dependencies
 node_modules/
@@ -54,6 +55,7 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+*-e
 .project
 .classpath
 .settings/
@@ -117,3 +119,13 @@ gradle-app.setting
 bazel-*
 .bazel
 .bazelrc.user
+
+# AI generated folders/files
+*.gpt
+*.copilot
+*.ai
+.claude/*
+.cursor/*
+.cursorrules
+.cursorignore
+.defang/*

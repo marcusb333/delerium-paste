@@ -84,13 +84,6 @@ export class MockApiClient implements IApiClient {
   }
 
   /**
-   * Health check
-   */
-  async healthCheck(): Promise<boolean> {
-    return true;
-  }
-
-  /**
    * Clear all stored pastes (for testing)
    */
   clear(): void {

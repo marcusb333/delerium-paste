@@ -1,10 +1,9 @@
 /**
  * Unit tests for core/validators module
- * 
+ *
  * Tests all validation functions including:
  * - Content size validation
  * - Expiration validation
- * - View count validation
  * - Password validation
  * - UTF-8 validation
  */
@@ -12,14 +11,11 @@
 import {
   validateContentSize,
   validateExpiration,
-  validateViewCount,
   validatePassword,
   isValidUTF8,
   MAX_CONTENT_SIZE,
   MAX_EXPIRATION_MINUTES,
   MIN_EXPIRATION_MINUTES,
-  MAX_VIEW_COUNT,
-  MIN_VIEW_COUNT,
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_LENGTH
 } from '../../../src/core/validators/index.js';
@@ -144,54 +140,6 @@ describe('validateExpiration', () => {
 });
 
 // ============================================================================
-// VIEW COUNT VALIDATION TESTS
-// ============================================================================
-
-describe('validateViewCount', () => {
-  it('should accept valid view counts', () => {
-    const result = validateViewCount(5);
-    expect(result.isValid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it('should accept minimum view count', () => {
-    const result = validateViewCount(MIN_VIEW_COUNT);
-    expect(result.isValid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it('should accept maximum view count', () => {
-    const result = validateViewCount(MAX_VIEW_COUNT);
-    expect(result.isValid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it('should reject zero', () => {
-    const result = validateViewCount(0);
-    expect(result.isValid).toBe(false);
-    expect(result.errors.some(err => err.includes('must be at least 1'))).toBe(true);
-  });
-
-  it('should reject negative values', () => {
-    const result = validateViewCount(-1);
-    expect(result.isValid).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-  });
-
-  it('should reject above maximum', () => {
-    const result = validateViewCount(MAX_VIEW_COUNT + 1);
-    expect(result.isValid).toBe(false);
-    expect(result.errors.some(err => err.includes('cannot exceed 100'))).toBe(true);
-  });
-
-  it('should reject non-integers', () => {
-    const result = validateViewCount(5.5);
-    expect(result.isValid).toBe(false);
-    expect(result.errors.length).toBeGreaterThan(0);
-  });
-});
-
-// ============================================================================
 // PASSWORD VALIDATION TESTS
 // ============================================================================
 
@@ -305,8 +253,6 @@ describe('Constants', () => {
     expect(MAX_CONTENT_SIZE).toBe(1024 * 1024);
     expect(MAX_EXPIRATION_MINUTES).toBe(7 * 24 * 60);
     expect(MIN_EXPIRATION_MINUTES).toBe(1);
-    expect(MAX_VIEW_COUNT).toBe(100);
-    expect(MIN_VIEW_COUNT).toBe(1);
     expect(MIN_PASSWORD_LENGTH).toBe(8);
     expect(MAX_PASSWORD_LENGTH).toBe(128);
   });
