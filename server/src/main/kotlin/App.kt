@@ -113,9 +113,11 @@ fun Application.module() {
     
     val envDbPath = System.getenv("DB_PATH")
     val dbPath = envDbPath ?: cfg.property("storage.dbPath").getString()
+    val dbUser = System.getenv("DB_USER") ?: cfg.propertyOrNull("storage.dbUser")?.getString()
+    val dbPassword = System.getenv("DB_PASSWORD") ?: cfg.propertyOrNull("storage.dbPassword")?.getString()
     val dataEncKeyringPath = System.getenv("DATA_ENC_KEYRING_PATH")
         ?: cfg.propertyOrNull("storage.dataEnc.keyringPath")?.getString()
-        ?: "/data/keyring.json"
+        ?: "/app/keyring.json"
     val dataEncRotationDays = System.getenv("DATA_ENC_ROTATION_DAYS")
         ?.toLongOrNull()
         ?: cfg.propertyOrNull("storage.dataEnc.rotationDays")?.getString()?.toLongOrNull()
@@ -179,15 +181,9 @@ fun Application.module() {
     val hikari = HikariDataSource(HikariConfig().apply {
         jdbcUrl = appCfg.dbPath
         maximumPoolSize = 5
-        // Enable SQLite foreign key constraints for CASCADE DELETE support
-        connectionInitSql = listOf(
-            "PRAGMA foreign_keys = ON",
-            "PRAGMA journal_mode = WAL",
-            "PRAGMA synchronous = NORMAL",
-            "PRAGMA busy_timeout = 5000",
-            "PRAGMA temp_store = MEMORY",
-            "PRAGMA trusted_schema = OFF"
-        ).joinToString("; ")
+        driverClassName = "org.postgresql.Driver"
+        if (dbUser != null) username = dbUser
+        if (dbPassword != null) password = dbPassword
     })
     val db = Database.connect(hikari)
     val seedKeyring = System.getenv("DATA_ENC_KEYRING")

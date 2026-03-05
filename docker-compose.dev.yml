@@ -1,7 +1,15 @@
 # Development overrides for docker-compose.yml
 # This file extends the base configuration for development
 
+volumes:
+  pgdata:
+    driver: local
+
 services:
+  postgres:
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   server:
     # Expose port for direct access during development
     ports:
@@ -29,10 +37,15 @@ services:
           path: ./server/Dockerfile
 
   web:
+    # Override port for local dev (avoid requiring root for port 80)
+    ports:
+      - "8080:80"
+    # Mount local files for live editing
+    volumes:
+      - ./client:/usr/share/nginx/html:ro
+      - ./reverse-proxy/nginx-dev.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
     # Docker watch configuration for client files
-    # The base docker-compose.yml already mounts ./client:/usr/share/nginx/html:ro
-    # Docker watch will detect changes and sync them automatically
-    # Note: The volume mount is read-only, so watch uses sync+restart for updates
     develop:
       watch:
         - action: sync+restart

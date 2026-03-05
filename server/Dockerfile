@@ -92,14 +92,11 @@ COPY --from=builder /app/ /app/
 # Create non-root user and set permissions
 RUN groupadd -r delirium && \
     useradd -r -g delirium delirium && \
-    chown -R delirium:delirium /app && \
-    mkdir -p /data && \
-    chown -R delirium:delirium /data
+    chown -R delirium:delirium /app
 
 # Switch to non-root user
 USER delirium
 
-VOLUME ["/data"]
 EXPOSE 8080
 
 # Health check

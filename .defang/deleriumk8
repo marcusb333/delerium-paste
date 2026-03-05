@@ -1,0 +1,4 @@
+AWS_PROFILE="marcus333"
+AWS_REGION="eu-north-1"
+DEFANG_MODE="affordable"
+DEFANG_PROVIDER="aws"
