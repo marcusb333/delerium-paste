@@ -28,7 +28,7 @@ fi
 
 # Start backend in Docker
 echo "🐳 Starting backend and web services..."
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d server web
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d server
 
 # Wait for backend to be ready
 echo "⏳ Waiting for services to be ready..."
