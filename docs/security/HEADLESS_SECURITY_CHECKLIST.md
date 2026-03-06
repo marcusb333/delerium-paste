@@ -37,7 +37,7 @@ make monitor
 make backup
 
 # View security logs
-make security-logs
+make logs
 ```
 
 ## Emergency Procedures
