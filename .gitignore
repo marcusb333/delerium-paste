@@ -125,7 +125,5 @@ bazel-*
 *.copilot
 *.ai
 .claude/*
-.cursor/*
-.cursorrules
-.cursorignore
+.cursor/.agent-tools/
 .defang/*
