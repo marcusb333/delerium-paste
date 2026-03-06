@@ -310,7 +310,15 @@ ENVEOF
     echo -e "${GREEN}.env file created with secure random secrets${NC}"
     echo ""
 else
-    # Ensure POSTGRES_PASSWORD exists in .env (may have been created before PostgreSQL migration)
+    # Ensure required secrets exist (auto-fill if missing)
+    if ! grep -q "DELETION_TOKEN_PEPPER" .env; then
+        echo -e "${YELLOW}Adding DELETION_TOKEN_PEPPER to existing .env...${NC}"
+        RANDOM_PEPPER=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+        echo "" >> .env
+        echo "# Server-side pepper for hashing deletion tokens (do not change after first deploy)" >> .env
+        echo "DELETION_TOKEN_PEPPER=$RANDOM_PEPPER" >> .env
+        echo -e "${GREEN}DELETION_TOKEN_PEPPER added to .env${NC}"
+    fi
     if ! grep -q "POSTGRES_PASSWORD" .env; then
         echo -e "${YELLOW}Adding POSTGRES_PASSWORD to existing .env...${NC}"
         RANDOM_PG_PASS=$(openssl rand -hex 16 2>/dev/null || head -c 16 /dev/urandom | xxd -p | tr -d '\n')
