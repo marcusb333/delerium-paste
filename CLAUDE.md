@@ -78,7 +78,7 @@ In a zero-knowledge system, a single mistake can permanently destroy user trust.
 
 **MAY skip** for: UI-only changes (CSS, layout), documentation, build scripts, non-security config.
 
-When in doubt, apply the protocol. See `docs/security/CHECKLIST.md` and `.cursor/rules/workspace.md` for details.
+When in doubt, apply the protocol. See `docs/security/CHECKLIST.md` for details.
 
 ---
 
@@ -187,7 +187,6 @@ server/
 ```
 
 ### Key Reference Files
-- `.cursor/rules/workspace.md` — API contract rules, security, testing
 - `docs/security/CHECKLIST.md` — Security audit checklist
 - `docs/architecture/C4-DIAGRAMS.md` — Architecture diagrams
 - `client/tests/README.md` — Testing standards
