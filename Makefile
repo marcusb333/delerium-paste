@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
 
 # Default target
 help:
@@ -63,8 +63,9 @@ help:
 	@echo "🐳 Docker:"
 	@echo "  make build-server-image - Build server Docker image locally (used by make start if not pulled)"
 	@echo "  make deploy-full   - Full pipeline: clean, build, test, and deploy"
-	@echo "  make build-multiarch - Build multi-architecture Docker images locally"
-	@echo "  make push-multiarch - Build and push multi-architecture images to registry"
+	@echo "  make build-multiarch - Validate multi-architecture Docker build (no local load)"
+	@echo "  make build-local     - Build and load single-arch image for current host"
+	@echo "  make push-multiarch  - Build and push multi-architecture images to registry"
 	@echo ""
 	@echo "☸️  Kubernetes:"
 	@echo "  make k8s-setup     - Interactive first-time setup (domain, email, pepper)"
@@ -260,7 +261,9 @@ deploy-full:
 	@echo "🌐 Access at http://localhost:8080"
 	@echo "📊 Check logs: make logs"
 
-# Build multi-architecture Docker images locally
+# Build multi-architecture Docker images (build validation only — no local load)
+# Note: Docker cannot load multi-platform images into the local daemon.
+# Use 'make push-multiarch' to build and push, or 'make build-local' for single-arch local use.
 build-multiarch:
 	@echo "🏗️  Building multi-architecture Docker images..."
 	@echo "📋 Checking Docker Buildx..."
@@ -271,14 +274,24 @@ build-multiarch:
 	@docker buildx build \
 		--platform linux/amd64,linux/arm64 \
 		-f server/Dockerfile \
-		--tag delerium-server:latest \
 		--tag delerium-server:multi-arch \
+		.
+	@echo "✅ Multi-architecture build validation complete!"
+	@echo "ℹ️  Images are not loaded locally (Docker limitation with multi-platform builds)."
+	@echo "   To push: make push-multiarch REGISTRY=<registry> TAG=<tag>"
+	@echo "   To load locally: make build-local"
+
+# Build and load a single-arch image for the current host platform (local use)
+build-local:
+	@echo "🏗️  Building Docker image for current platform..."
+	@docker buildx version || (echo "❌ Docker Buildx not found." && exit 1)
+	@docker buildx build \
+		--platform linux/$(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
+		-f server/Dockerfile \
+		--tag delerium-server:latest \
 		--load \
 		.
-	@echo "✅ Multi-architecture build complete!"
-	@echo "📦 Images tagged as:"
-	@echo "   - delerium-server:latest"
-	@echo "   - delerium-server:multi-arch"
+	@echo "✅ Local build complete — image: delerium-server:latest"
 
 # Build and push multi-architecture images to registry
 # Usage: make push-multiarch REGISTRY=ghcr.io/username TAG=v1.0.0
