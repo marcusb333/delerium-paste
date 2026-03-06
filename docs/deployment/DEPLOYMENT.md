@@ -5,14 +5,11 @@ Deploy Delirium locally or to a VPS with SSL.
 ## Quick Deploy
 
 ```bash
-./deploy.sh local                              # Local dev (http://localhost:8080)
-./deploy.sh vps-setup example.com admin@example.com  # VPS + SSL
-./deploy.sh production                         # Production (existing setup)
-./deploy.sh update                             # Pull + rebuild + restart
-./deploy.sh status                             # Check status
-./deploy.sh logs                               # View logs
-./deploy.sh stop                               # Stop services
-./deploy.sh help                               # Full help
+./scripts/deploy-prod.sh               # Full deployment (pull latest images)
+./scripts/deploy-prod.sh --quick       # Skip backup (fastest)
+./scripts/deploy-prod.sh --build       # Build images from source instead of pulling
+./scripts/deploy-prod.sh --skip-ssl    # Skip SSL setup
+./scripts/deploy-prod.sh --help        # Full help
 ```
 
 **Requirements:** Docker, Docker Compose. For VPS: Ubuntu 22.04+, domain pointed to server, 1GB RAM.
@@ -21,12 +18,15 @@ Deploy Delirium locally or to a VPS with SSL.
 
 ```bash
 ssh user@your-vps
-git clone https://github.com/your-username/delerium-paste.git
+git clone https://github.com/marcusb333/delerium-paste.git
 cd delerium-paste
-./deploy.sh vps-setup your-domain.com your@email.com
+# Optional: configure domain + SSL before deploying
+echo "DOMAIN=your-domain.com" >> .env
+echo "SSL_EMAIL=your@email.com" >> .env
+./scripts/deploy-prod.sh
 ```
 
-This installs Docker, configures SSL (Let's Encrypt), and deploys. Access at `https://your-domain.com`.
+This installs Docker if missing, generates secure secrets, configures SSL (Let's Encrypt) if a domain is set, and starts everything. Access at `https://your-domain.com`.
 
 ## Manual Deployment
 
@@ -34,28 +34,28 @@ This installs Docker, configures SSL (Let's Encrypt), and deploys. Access at `ht
 
 - Ubuntu 22.04+ or Debian 11+
 - Docker: `curl -fsSL https://get.docker.com | sudo sh`
-- Node.js 20: see [NodeSource](https://github.com/nodesource/distributions)
 
 ### 2. Configure
 
 ```bash
 cp .env.example .env
 echo "DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)" >> .env
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
 echo "DOMAIN=your-domain.com" >> .env
-echo "LETSENCRYPT_EMAIL=your@email.com" >> .env
+echo "SSL_EMAIL=your@email.com" >> .env
 ```
 
 ### 3. Deploy
 
 ```bash
-./deploy.sh production
+./scripts/deploy-prod.sh
 ```
 
-Or manually: `cd client && npm run build && cd .. && docker compose -f docker-compose.prod.yml up -d`
+Or manually: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
 
 ## SSL
 
-- **Let's Encrypt:** `./deploy.sh vps-setup` handles this automatically.
+- **Let's Encrypt:** Set `DOMAIN` and `SSL_EMAIL` in `.env` before running `./scripts/deploy-prod.sh`.
 - **Manual:** See [SSL_SETUP.md](SSL_SETUP.md).
 - **Self-signed (dev only):** `mkdir -p ssl && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/privkey.pem -out ssl/fullchain.pem -subj "/CN=localhost"`
 
@@ -63,22 +63,22 @@ Or manually: `cd client && npm run build && cd .. && docker compose -f docker-co
 
 ```bash
 git pull
-./deploy.sh production
+./scripts/deploy-prod.sh --quick
 ```
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Services unhealthy | `./deploy.sh logs` then `./deploy.sh stop && ./deploy.sh production` |
+| Services unhealthy | `make prod-logs` then `make prod-stop && ./scripts/deploy-prod.sh` |
 | SSL failed | Verify DNS: `dig +short your-domain.com` |
 | Port conflict | `sudo ss -tlnp | grep -E ":(80|443|8080)"` |
 
 ## Backup
 
 ```bash
-docker run --rm -v delirium_server-data:/data -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/server-data-$(date +%Y%m%d-%H%M%S).tar.gz /data
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+  pg_dump -U delerium delerium | gzip > backups/delerium_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
 ## More
