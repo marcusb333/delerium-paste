@@ -350,11 +350,11 @@ phase_post_merge() {
         success "GitHub release created for ${tag}"
     fi
 
-    # Docker push
+    # Docker push (multi-arch: linux/amd64 + linux/arm64)
     if [ "$SKIP_DOCKER" = false ]; then
-        info "Building and pushing Docker image..."
-        make push-server-version VERSION="$tag"
-        success "Docker image pushed: marcusb333/delerium-server:${tag}"
+        info "Building and pushing multi-arch Docker image..."
+        make push-multiarch REGISTRY=marcusb333 TAG="$tag"
+        success "Docker image pushed: marcusb333/delerium-server:${tag} (amd64 + arm64)"
     else
         warn "Skipping Docker push (--skip-docker)"
     fi
