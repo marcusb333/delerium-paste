@@ -112,14 +112,15 @@ cd "$PROJECT_DIR"
 
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64)       DOCKER_ARCH="amd64" ;;
+    x86_64)        DOCKER_ARCH="amd64" ;;
     aarch64|arm64) DOCKER_ARCH="arm64" ;;
-    armv7l)       DOCKER_ARCH="arm/v7" ;;
-    *)            DOCKER_ARCH="$ARCH" ;;
+    armv7l)        DOCKER_ARCH="arm/v7" ;;
+    *)             DOCKER_ARCH="$ARCH" ;;
 esac
+export DOCKER_DEFAULT_PLATFORM="linux/${DOCKER_ARCH}"
 
 OS=$(uname -s)
-echo -e "${BLUE}System: ${OS} ${ARCH} (Docker platform: linux/${DOCKER_ARCH})${NC}"
+echo -e "${BLUE}System: ${OS} ${ARCH} (Docker platform: ${DOCKER_DEFAULT_PLATFORM})${NC}"
 echo ""
 
 # ── Dependency Installation ─────────────────────────────────────────
@@ -195,8 +196,12 @@ if [ "$SKIP_DEPS" = false ]; then
         else
             # Fallback: install standalone docker-compose
             COMPOSE_VERSION="v2.32.4"
-            COMPOSE_ARCH="$ARCH"
-            [ "$COMPOSE_ARCH" = "arm64" ] && COMPOSE_ARCH="aarch64"
+            case "$ARCH" in
+                x86_64)        COMPOSE_ARCH="x86_64" ;;
+                aarch64|arm64) COMPOSE_ARCH="aarch64" ;;
+                armv7l)        COMPOSE_ARCH="armv7" ;;
+                *)             COMPOSE_ARCH="$ARCH" ;;
+            esac
             sudo curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${COMPOSE_ARCH}" \
                 -o /usr/local/bin/docker-compose
             sudo chmod +x /usr/local/bin/docker-compose
@@ -377,7 +382,7 @@ if [ "$PULL_IMAGES" = true ]; then
     echo ""
 elif [ "$NO_DOCKER_BUILD" = false ]; then
     echo -e "${YELLOW}Building Docker images (${DOCKER_ARCH})...${NC}"
-    $DOCKER_COMPOSE $COMPOSE_FILES build --parallel 2>&1 | grep -v "DEPRECATED" || true
+    $DOCKER_COMPOSE $COMPOSE_FILES build --parallel --platform "${DOCKER_DEFAULT_PLATFORM}" 2>&1 | grep -v "DEPRECATED" || true
     echo -e "${GREEN}Docker images built${NC}"
     echo ""
 else
