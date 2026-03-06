@@ -5,10 +5,9 @@ Zero-knowledge encrypted paste system. All encryption happens client-side; the s
 ## Quick Deploy
 
 ```bash
-./deploy.sh local                              # Local (http://localhost:8080)
-./deploy.sh vps-setup example.com admin@example.com  # VPS + SSL
-./deploy.sh production                         # Production
-./deploy.sh update                             # Update deployment
+make quick-start                               # First-time setup
+make start                                     # Run locally (http://localhost:8080)
+make deploy-prod                               # Production deployment
 ```
 
 ## Documentation Index
@@ -29,16 +28,10 @@ Zero-knowledge encrypted paste system. All encryption happens client-side; the s
 - [Proof of Work](architecture/PROOF_OF_WORK.md)
 
 ### Development
-- [PR Guide](prs/README.md) - Contribution workflow
 - [Testing Guide](../client/tests/README.md) - Unit, integration, E2E
 - [Bazel Quickstart](development/BAZEL_QUICKSTART.md)
-- [Docker Watch](development/DOCKER_WATCH.md) - Hot-reload development mode
 - [Docker Watch](development/DOCKER_WATCH.md) - Hot-reload development mode
 
 ### Security
 - [Security Checklist](security/CHECKLIST.md)
 - [Headless Security](security/HEADLESS_SECURITY_CHECKLIST.md)
-
-### Contributing
-- [Cursor Migration](contributing/CURSOR_MIGRATION.md) - IDE setup
-- [PR Review Guidelines](contributing/CURSOR-PR-REVIEW.md)
