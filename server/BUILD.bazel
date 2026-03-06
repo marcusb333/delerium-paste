@@ -28,7 +28,6 @@ kt_jvm_library(
         "@maven//:org_jetbrains_exposed_exposed_jdbc",
         "@maven//:com_zaxxer_HikariCP",
         "@maven//:org_postgresql_postgresql",
-        "@maven//:org_xerial_sqlite_jdbc",
         "@maven//:org_bouncycastle_bcprov_jdk18on",
         "@maven//:com_fasterxml_jackson_module_jackson_module_kotlin",
     ],
@@ -59,6 +58,7 @@ kt_jvm_library(
         ":delerium_server_lib",
         "@maven//:io_ktor_ktor_server_test_host_jvm",
         "@maven//:com_fasterxml_jackson_module_jackson_module_kotlin",
+        "@maven//:org_xerial_sqlite_jdbc",
     ],
 )
 

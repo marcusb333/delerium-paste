@@ -8,11 +8,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-# Create data directory if it doesn't exist
-mkdir -p server/data
-
-# Set database path to local data directory
-export DB_PATH="jdbc:sqlite:${SCRIPT_DIR}/data/pastes.db"
+# PostgreSQL connection — requires a running PostgreSQL instance.
+# Start one quickly with: docker compose up -d postgres
+export DB_PATH="${DB_PATH:-jdbc:postgresql://localhost:5432/delerium}"
+export DB_USER="${DB_USER:-delerium}"
+export DB_PASSWORD="${DB_PASSWORD:-delerium}"
 
 # Generate a pepper if not set (optional for local dev)
 if [ -z "$DELETION_TOKEN_PEPPER" ]; then

@@ -2,7 +2,7 @@
  * Storage.kt - Database schema and repository for paste storage
  * 
  * This file handles all database operations for storing and retrieving encrypted pastes.
- * Uses Exposed SQL library with SQLite for persistence.
+ * Uses Exposed SQL library with PostgreSQL for persistence.
  * 
  * Key features:
  * - Automatic schema creation
