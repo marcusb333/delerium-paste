@@ -349,15 +349,17 @@ prod-stop:
 # Fresh VPS install — no git repo required on the server.
 # Copies the self-contained installer to the VPS and runs it.
 # Usage: make fresh-vps-install VPS=user@delerium.cc
+#        make fresh-vps-install VPS=user@delerium.cc SSH_KEY=~/.ssh/id_ed25519
 #        make fresh-vps-install VPS=user@delerium.cc WIPE_DATA=1   # also wipe paste DB
+SSH_OPTS := $(if $(SSH_KEY),-o IdentitiesOnly=yes -i $(SSH_KEY),)
 fresh-vps-install:
 ifndef VPS
 	$(error Set VPS=user@host, e.g. make fresh-vps-install VPS=root@delerium.cc)
 endif
 	@echo "Copying installer to $(VPS)..."
-	scp scripts/fresh-vps-install.sh $(VPS):/tmp/fresh-vps-install.sh
+	scp $(SSH_OPTS) scripts/fresh-vps-install.sh $(VPS):/tmp/fresh-vps-install.sh
 	@echo "Running installer on $(VPS)..."
-	ssh $(VPS) "WIPE_DATA=$(if $(WIPE_DATA),$(WIPE_DATA),0) bash /tmp/fresh-vps-install.sh"
+	ssh $(SSH_OPTS) $(VPS) "WIPE_DATA=$(if $(WIPE_DATA),$(WIPE_DATA),0) bash /tmp/fresh-vps-install.sh"
 
 # Bazel-specific targets
 bazel-setup:
