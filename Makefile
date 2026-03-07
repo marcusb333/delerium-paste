@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop fresh-vps-install bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
 
 # Default target
 help:
@@ -10,6 +10,7 @@ help:
 	@echo "Available commands:"
 	@echo ""
 	@echo "🚀 Production:"
+	@echo "  make fresh-vps-install VPS=root@delerium.cc - Fresh install on a VPS (no git needed on server)"
 	@echo "  make deploy-prod   - Deploy to production (with backup)"
 	@echo "  make prod-status   - Check production status"
 	@echo "  make prod-logs     - View production logs"
@@ -344,6 +345,19 @@ prod-stop:
 	@echo "🛑 Stopping production..."
 	@chmod +x scripts/prod-stop.sh
 	./scripts/prod-stop.sh
+
+# Fresh VPS install — no git repo required on the server.
+# Copies the self-contained installer to the VPS and runs it.
+# Usage: make fresh-vps-install VPS=user@delerium.cc
+#        make fresh-vps-install VPS=user@delerium.cc WIPE_DATA=1   # also wipe paste DB
+fresh-vps-install:
+ifndef VPS
+	$(error Set VPS=user@host, e.g. make fresh-vps-install VPS=root@delerium.cc)
+endif
+	@echo "Copying installer to $(VPS)..."
+	scp scripts/fresh-vps-install.sh $(VPS):/tmp/fresh-vps-install.sh
+	@echo "Running installer on $(VPS)..."
+	ssh $(VPS) "WIPE_DATA=$(if $(WIPE_DATA),$(WIPE_DATA),0) bash /tmp/fresh-vps-install.sh"
 
 # Bazel-specific targets
 bazel-setup:
