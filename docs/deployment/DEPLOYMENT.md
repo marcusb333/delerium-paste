@@ -20,17 +20,34 @@ When a git tag is pushed, GitHub Actions builds the Docker image and deploys it 
 
 ## VPS Setup
 
+The VPS does not need git. Copy the two files it needs from your local machine:
+
 ```bash
-ssh user@your-vps
-git clone https://github.com/marcusb333/delerium-paste.git
-cd delerium-paste
-# Optional: configure domain + SSL before deploying
-echo "DOMAIN=your-domain.com" >> .env
-echo "SSL_EMAIL=your@email.com" >> .env
-./scripts/deploy-prod.sh
+scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
+scp scripts/vps-setup.sh noob@your-vps:/tmp/
+scp scripts/nginx-snippet.conf noob@your-vps:/tmp/
 ```
 
-This installs Docker if missing, generates secure secrets, configures SSL (Let's Encrypt) if a domain is set, and starts everything. Access at `https://your-domain.com`.
+Then on the VPS:
+
+```bash
+mkdir -p /home/noob/delerium-paste
+cd /home/noob/delerium-paste
+
+# Create secrets (never commit this file)
+cat > .env <<EOF
+DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+DB_PASSWORD=<same as POSTGRES_PASSWORD>
+EOF
+
+# Pull image and start services
+IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
+
+# Set up webhook for auto-deploy (see AUTO_DEPLOYMENT.md)
+export DEPLOY_TOKEN="your-deploy-token"
+sudo -E bash /tmp/vps-setup.sh
+```
 
 ## Manual Deployment
 
@@ -41,22 +58,21 @@ This installs Docker if missing, generates secure secrets, configures SSL (Let's
 
 ### 2. Configure
 
+Copy `docker-compose-prod.yml` to the VPS (e.g. via `scp`), then create `.env`:
+
 ```bash
-cp .env.example .env
-echo "DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)" >> .env
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
-echo "DB_PASSWORD=$(grep POSTGRES_PASSWORD .env | cut -d= -f2)" >> .env
-echo "DOMAIN=your-domain.com" >> .env
-echo "SSL_EMAIL=your@email.com" >> .env
+cat > .env <<EOF
+DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+DB_PASSWORD=<same as POSTGRES_PASSWORD>
+EOF
 ```
 
 ### 3. Deploy
 
 ```bash
-./scripts/deploy-prod.sh
+IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
 ```
-
-Or manually: `docker compose -f docker-compose-prod.yml up -d`
 
 ## SSL
 
@@ -66,10 +82,9 @@ Or manually: `docker compose -f docker-compose-prod.yml up -d`
 
 ## Updates
 
-Tagged releases deploy automatically via GitHub Actions + VPS webhook. For manual updates (e.g. config changes without a new release):
+Tagged releases deploy automatically via GitHub Actions + VPS webhook. For manual updates (e.g. config changes without a new release), `scp` the updated `docker-compose-prod.yml` to the VPS, then:
 
 ```bash
-git pull
 docker compose -f docker-compose-prod.yml pull server
 docker compose -f docker-compose-prod.yml up -d --force-recreate --no-deps server
 ```

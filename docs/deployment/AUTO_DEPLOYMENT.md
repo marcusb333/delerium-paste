@@ -40,19 +40,30 @@ Generate `DEPLOY_TOKEN` with: `openssl rand -hex 32`
 
 ### 2. VPS Webhook Listener
 
-Run the setup script once on the VPS as root:
+The VPS does not need git. Copy the setup script from your local machine:
 
 ```bash
-# Set the deploy token before running (must match the GitHub secret above)
-export DEPLOY_TOKEN="your-deploy-token-here"
-sudo -E bash scripts/vps-setup.sh
+scp scripts/vps-setup.sh noob@your-vps:/tmp/
+```
+
+Then on the VPS as root:
+
+```bash
+export DEPLOY_TOKEN="your-deploy-token-here"   # must match the GitHub secret above
+sudo -E bash /tmp/vps-setup.sh
 ```
 
 This installs and starts `webhook` as a systemd service on port 9000, and creates `/opt/deploy.sh`.
 
 ### 3. Nginx Proxy
 
-Add the contents of `scripts/nginx-snippet.conf` to your existing nginx `server {}` block, then reload:
+Copy the snippet from your local machine and add it to your nginx `server {}` block:
+
+```bash
+scp scripts/nginx-snippet.conf noob@your-vps:/tmp/
+```
+
+On the VPS, paste the contents into your existing nginx site config, then reload:
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
@@ -60,14 +71,23 @@ sudo nginx -t && sudo systemctl reload nginx
 
 This proxies `https://your-domain.com/hooks/` to the webhook listener on port 9000.
 
-### 4. VPS `.env` File
+### 4. VPS files
 
-On the VPS at `/home/noob/delerium-paste/.env` (copy from `.env.example`):
+The VPS only needs two files: `docker-compose-prod.yml` and `.env`. Copy the compose file:
 
 ```bash
+scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
+```
+
+Create `.env` on the VPS (never commit this):
+
+```bash
+mkdir -p /home/noob/delerium-paste
+cat > /home/noob/delerium-paste/.env <<EOF
 DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 DB_PASSWORD=<same as POSTGRES_PASSWORD>
+EOF
 ```
 
 ## Triggering a Deployment
