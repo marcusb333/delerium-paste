@@ -14,7 +14,7 @@
     "sourceMap": true,
     "tsBuildInfoFile": "./js/.tsbuildinfo",
     "lib": [
-      "ES2020",
+      "ES2022",
       "DOM"
     ],
     "skipDefaultLibCheck": true
