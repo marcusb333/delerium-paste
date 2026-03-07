@@ -117,6 +117,12 @@ if ! docker compose version &>/dev/null 2>&1; then
     apt-get install -y -qq docker-compose-plugin
 fi
 ok "Docker Compose: $(docker compose version --short 2>/dev/null || echo 'ok')"
+
+# Add the invoking user to the docker group so they don't need sudo for docker
+if [[ -n "${SUDO_USER:-}" ]]; then
+    usermod -aG docker "$SUDO_USER"
+    ok "Added $SUDO_USER to docker group (re-login to take effect)"
+fi
 echo ""
 
 # ── 3. Create install directory and .env ──────────────────────────────────────
