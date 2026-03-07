@@ -99,8 +99,8 @@ echo ""
 # ── 2. Install system dependencies ────────────────────────────────────────────
 log "Step 2/9 — Installing system packages..."
 apt-get update -qq
-apt-get install -y -qq curl openssl nginx certbot python3-certbot-nginx
-ok "curl, openssl, nginx, certbot installed"
+apt-get install -y -qq curl openssl nginx certbot python3-certbot-nginx make
+ok "curl, openssl, nginx, certbot, make installed"
 
 # Docker
 if ! command -v docker &>/dev/null; then

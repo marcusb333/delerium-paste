@@ -351,15 +351,12 @@ prod-stop:
 # Usage: make fresh-vps-install VPS=user@delerium.cc
 #        make fresh-vps-install VPS=user@delerium.cc SSH_KEY=~/.ssh/id_ed25519
 #        make fresh-vps-install VPS=user@delerium.cc WIPE_DATA=1   # also wipe paste DB
-SSH_OPTS := $(if $(SSH_KEY),-o IdentitiesOnly=yes -i $(SSH_KEY),)
 fresh-vps-install:
 ifndef VPS
 	$(error Set VPS=user@host, e.g. make fresh-vps-install VPS=root@delerium.cc)
 endif
-	@echo "Copying installer to $(VPS)..."
-	scp $(SSH_OPTS) scripts/fresh-vps-install.sh $(VPS):/tmp/fresh-vps-install.sh
-	@echo "Running installer on $(VPS)..."
-	ssh $(SSH_OPTS) $(VPS) "WIPE_DATA=$(if $(WIPE_DATA),$(WIPE_DATA),0) bash /tmp/fresh-vps-install.sh"
+	@chmod +x scripts/push-to-vps.sh
+	WIPE_DATA=$(if $(WIPE_DATA),$(WIPE_DATA),0) ./scripts/push-to-vps.sh $(VPS) $(SSH_KEY)
 
 # Bazel-specific targets
 bazel-setup:

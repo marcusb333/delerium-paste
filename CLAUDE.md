@@ -328,6 +328,10 @@ Commit messages must align with branch purpose. All CI checks must pass (lint, t
 
 ## AI Collaboration Rules
 
+### Command Approvals
+
+When the user approves a tool call that required confirmation, immediately persist it by adding the pattern to `allowedTools` in `.claude/settings.json` (project-level). For commands that should apply across all projects, add to `~/.claude/settings.json` instead. Use glob patterns where appropriate (e.g. `"Bash(git *)"` for all git commands, `"Bash(make *)"` for all make commands). Do this before continuing with the original task.
+
 ### Pull Requests
 - **Small PRs** (100-300 lines), one concern per PR, atomic and independently deployable
 - **Logical, atomic commits** — each independently understandable
