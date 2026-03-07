@@ -245,7 +245,7 @@ if [ "$SKIP_SSL" = false ]; then
                 echo -e "${YELLOW}  Setting up SSL for domain: $DOMAIN${NC}"
 
                 # Stop containers to free port 80
-                $DOCKER_COMPOSE $COMPOSE_FILES down 2>/dev/null || true
+                $DOCKER_COMPOSE $COMPOSE_FILES down --remove-orphans 2>/dev/null || true
 
                 EMAIL="${SSL_EMAIL:-admin@$DOMAIN}"
 
@@ -401,7 +401,7 @@ fi
 # ── Deploy ──────────────────────────────────────────────────────────
 
 echo -e "${YELLOW}Stopping old containers...${NC}"
-$DOCKER_COMPOSE $COMPOSE_FILES down
+$DOCKER_COMPOSE $COMPOSE_FILES down --remove-orphans
 echo -e "${GREEN}Old containers stopped${NC}"
 echo ""
 
