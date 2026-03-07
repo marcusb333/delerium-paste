@@ -139,31 +139,23 @@ services:
 
 ### GitHub Actions
 
-The repository includes GitHub Actions workflows that automatically build multi-arch images:
+The repository uses `.github/workflows/deploy.yml` to automatically build and push the server image when a git tag is pushed.
 
-#### Workflow: `docker-publish.yml`
+#### Workflow: `deploy.yml`
 
-Triggers on:
+Triggers on: git tags matching `v*`
 
-- Push to `main` branch
-- Git tags starting with `v*`
-- Pull requests (build only, no push)
+Builds for: `linux/amd64` (single-arch, native runner)
 
-Builds for: `linux/amd64`, `linux/arm64`
+Publishes to Docker Hub:
+- `marcusb333/delerium-server:<tag>`
+- `marcusb333/delerium-server:latest`
 
-Publishes to:
+After pushing the image, the workflow calls the VPS webhook to pull and restart the server container automatically. See [AUTO_DEPLOYMENT.md](AUTO_DEPLOYMENT.md) for setup.
 
-- GitHub Container Registry (ghcr.io)
-- Docker Hub (if configured)
-
-#### Workflow: `docker-hub-server.yml`
-
-Manual workflow for publishing to Docker Hub:
-
-```bash
-# Trigger via GitHub UI or CLI
-gh workflow run docker-hub-server.yml -f tag=v1.0.0
-```
+> **Note:** The CI workflow currently builds for `linux/amd64` only. For multi-arch
+> production images, use `make push-multiarch` locally or extend the workflow with
+> `docker/setup-qemu-action` and a `platforms` list.
 
 ### Verifying Multi-Arch Images
 

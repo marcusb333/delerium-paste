@@ -2,7 +2,11 @@
 
 Deploy Delirium locally or to a VPS with SSL.
 
-## Quick Deploy
+## Automatic Deployment (Recommended)
+
+When a git tag is pushed, GitHub Actions builds the Docker image and deploys it to the VPS automatically — no manual steps needed. See [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) for setup.
+
+## Manual / First-Time VPS Setup
 
 ```bash
 ./scripts/deploy-prod.sh               # Full deployment (pull latest images)
@@ -41,6 +45,7 @@ This installs Docker if missing, generates secure secrets, configures SSL (Let's
 cp .env.example .env
 echo "DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)" >> .env
 echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
+echo "DB_PASSWORD=$(grep POSTGRES_PASSWORD .env | cut -d= -f2)" >> .env
 echo "DOMAIN=your-domain.com" >> .env
 echo "SSL_EMAIL=your@email.com" >> .env
 ```
@@ -51,7 +56,7 @@ echo "SSL_EMAIL=your@email.com" >> .env
 ./scripts/deploy-prod.sh
 ```
 
-Or manually: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
+Or manually: `docker compose -f docker-compose-prod.yml up -d`
 
 ## SSL
 
@@ -61,30 +66,33 @@ Or manually: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up
 
 ## Updates
 
+Tagged releases deploy automatically via GitHub Actions + VPS webhook. For manual updates (e.g. config changes without a new release):
+
 ```bash
 git pull
-./scripts/deploy-prod.sh --quick
+docker compose -f docker-compose-prod.yml pull server
+docker compose -f docker-compose-prod.yml up -d --force-recreate --no-deps server
 ```
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---------|----------|
-| Services unhealthy | `make prod-logs` then `make prod-stop && ./scripts/deploy-prod.sh` |
+| Services unhealthy | `docker compose -f docker-compose-prod.yml logs server` |
 | SSL failed | Verify DNS: `dig +short your-domain.com` |
 | Port conflict | `sudo ss -tlnp | grep -E ":(80|443|8080)"` |
 
 ## Backup
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T postgres \
+docker compose -f docker-compose-prod.yml exec -T postgres \
   pg_dump -U delerium delerium | gzip > backups/delerium_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
 ## More
 
 - [Setup Guide](../getting-started/SETUP.md) - Initial configuration
+- [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) - GitHub Actions + webhook deploy
 - [Kubernetes](KUBERNETES.md) - Deploy to a Kubernetes cluster
 - [SSL Setup](SSL_SETUP.md) - Advanced SSL
 - [Security Checklist](../security/CHECKLIST.md)
-- [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md)
