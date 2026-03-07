@@ -4,9 +4,35 @@ Collection of utility scripts for deploying and managing Delirium.
 
 ## 🚀 Production Scripts
 
+### push-to-vps.sh
+
+Copy `fresh-vps-install.sh` to a remote VPS and run it. Works with any user credentials.
+
+```bash
+# Basic usage
+./scripts/push-to-vps.sh user@your-server.com
+
+# With a specific SSH key
+./scripts/push-to-vps.sh user@your-server.com ~/.ssh/id_ed25519
+
+# Also wipe the paste database (fresh start)
+WIPE_DATA=1 ./scripts/push-to-vps.sh user@your-server.com ~/.ssh/id_ed25519
+
+# Via Make
+make fresh-vps-install VPS=user@your-server.com
+make fresh-vps-install VPS=user@your-server.com SSH_KEY=~/.ssh/id_ed25519
+make fresh-vps-install VPS=user@your-server.com WIPE_DATA=1
+```
+
+Prints usage instructions if called without arguments.
+
+### fresh-vps-install.sh
+
+Self-contained installer that runs directly on the VPS — no git required on the server. Installs Docker, pulls the latest images, and starts Delirium. Called automatically by `push-to-vps.sh`.
+
 ### deploy-prod.sh
 
-Main production deployment script with backup and health checks.
+Deploy an update to an already-running production server (backup + pull + restart).
 
 ```bash
 # Full deployment (recommended)
@@ -198,13 +224,12 @@ See [Version Bumping Guide](../docs/versioning/VERSION_BUMPING.md) for detailed 
 
 ## 📦 Deployment
 
-Use the unified deploy script at root:
-
 ```bash
-./deploy.sh local              # Local development
-./deploy.sh vps-setup example.com admin@example.com  # VPS setup with SSL
-./deploy.sh production         # Production deployment
-./deploy.sh update             # Update existing deployment
+# Fresh install on a new VPS
+./scripts/push-to-vps.sh user@your-server.com [~/.ssh/key]
+
+# Update an existing production deployment
+./scripts/deploy-prod.sh
 ```
 
 See [docs/deployment/DEPLOYMENT.md](../docs/deployment/DEPLOYMENT.md) for details.
@@ -241,7 +266,8 @@ Create manual backup.
 
 | Task | Script |
 |------|--------|
-| Deploy production | `deploy-prod.sh` |
+| Fresh install on new VPS | `push-to-vps.sh user@host [key]` |
+| Deploy update to production | `deploy-prod.sh` |
 | Check status | `prod-status.sh` |
 | View logs | `prod-logs.sh` |
 | Stop production | `prod-stop.sh` |
@@ -254,10 +280,17 @@ Create manual backup.
 
 ## 🎯 Common Workflows
 
-### Initial Production Deployment
+### Initial Production Deployment (new server)
 
 ```bash
-# 1. Setup environment
+# Install everything on a fresh VPS
+./scripts/push-to-vps.sh user@your-server.com ~/.ssh/id_ed25519
+```
+
+### Updating an Existing Deployment
+
+```bash
+# 1. Setup local environment (first time only)
 ./scripts/setup.sh
 
 # 2. Configure SSL (if needed)
