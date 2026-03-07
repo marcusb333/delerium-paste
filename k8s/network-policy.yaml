@@ -1,13 +1,13 @@
 # NetworkPolicy: lock down pod-to-pod traffic in the delerium namespace.
 #
 # Topology enforced:
-#   ingress-controller → server:8080
+#   ingress-controller → server:9090 (svc) → pod:8080
 #   server             → postgres:5432
 #
 # Requires a CNI that supports NetworkPolicy (Calico, Cilium, Weave, etc.).
 
 ---
-# Allow the ingress controller to reach the server pod on port 8080.
+# Allow the ingress controller to reach the server pod on port 8080 (container port).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
