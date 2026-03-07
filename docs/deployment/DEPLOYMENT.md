@@ -1,90 +1,69 @@
 # Deployment Guide
 
-Deploy Delirium locally or to a VPS with SSL.
+Deploy Delirium to a VPS with SSL via nginx + Let's Encrypt.
 
-## Automatic Deployment (Recommended)
+## Recommended: Automatic CI/CD
 
-When a git tag is pushed, GitHub Actions builds the Docker image and deploys it to the VPS automatically — no manual steps needed. See [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) for setup.
+Push a git tag → GitHub Actions builds the Docker image → VPS webhook deploys it automatically. See [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) for the full setup.
 
-## Manual / First-Time VPS Setup
+## First-Time VPS Setup
+
+**Requirements:** Ubuntu 22.04+, Docker, nginx, a domain pointing at the server.
+
+Install Docker if not already present:
 
 ```bash
-./scripts/deploy-prod.sh               # Full deployment (pull latest images)
-./scripts/deploy-prod.sh --quick       # Skip backup (fastest)
-./scripts/deploy-prod.sh --build       # Build images from source instead of pulling
-./scripts/deploy-prod.sh --skip-ssl    # Skip SSL setup
-./scripts/deploy-prod.sh --help        # Full help
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker noob
 ```
 
-**Requirements:** Docker, Docker Compose. For VPS: Ubuntu 22.04+, domain pointed to server, 1GB RAM.
-
-## VPS Setup
-
-The VPS does not need git. Copy the two files it needs from your local machine:
+Copy the required files from your local machine:
 
 ```bash
-scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
-scp scripts/vps-setup.sh noob@your-vps:/tmp/
-scp scripts/nginx-snippet.conf noob@your-vps:/tmp/
+scp docker-compose-prod.yml scripts/vps-setup.sh scripts/nginx-snippet.conf \
+    noob@your-vps:/tmp/
 ```
 
-Then on the VPS:
+Run setup on the VPS — this generates `.env` with random secrets, installs the webhook listener, and prints next steps:
 
 ```bash
-mkdir -p /home/noob/delerium-paste
-cd /home/noob/delerium-paste
-
-# Create secrets (never commit this file)
-cat > .env <<EOF
-DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-DB_PASSWORD=<same as POSTGRES_PASSWORD>
-EOF
-
-# Pull image and start services
-IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
-
-# Set up webhook for auto-deploy (see AUTO_DEPLOYMENT.md)
-export DEPLOY_TOKEN="your-deploy-token"
+export DEPLOY_TOKEN="$(openssl rand -hex 32)"   # save this; add to GitHub Secrets too
 sudo -E bash /tmp/vps-setup.sh
 ```
 
-## Manual Deployment
-
-### 1. Prerequisites
-
-- Ubuntu 22.04+ or Debian 11+
-- Docker: `curl -fsSL https://get.docker.com | sudo sh`
-
-### 2. Configure
-
-Copy `docker-compose-prod.yml` to the VPS (e.g. via `scp`), then create `.env`:
+Move the compose file and start services:
 
 ```bash
-cat > .env <<EOF
-DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-DB_PASSWORD=<same as POSTGRES_PASSWORD>
-EOF
-```
-
-### 3. Deploy
-
-```bash
+mv /tmp/docker-compose-prod.yml /home/noob/delerium-paste/
+cd /home/noob/delerium-paste
 IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
 ```
 
 ## SSL
 
-- **Let's Encrypt:** Set `DOMAIN` and `SSL_EMAIL` in `.env` before running `./scripts/deploy-prod.sh`.
-- **Manual:** See [SSL_SETUP.md](SSL_SETUP.md).
-- **Self-signed (dev only):** `mkdir -p ssl && openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/privkey.pem -out ssl/fullchain.pem -subj "/CN=localhost"`
+The server binds to `127.0.0.1:8080` only — nginx handles SSL termination.
+
+`scripts/nginx-snippet.conf` is a complete nginx server block template. Install it:
+
+```bash
+sudo cp /tmp/nginx-snippet.conf /etc/nginx/sites-available/delerium
+sudo ln -s /etc/nginx/sites-available/delerium /etc/nginx/sites-enabled/
+sudo nano /etc/nginx/sites-available/delerium   # replace 'your-domain.com'
+
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+sudo systemctl reload nginx
+```
 
 ## Updates
 
-Tagged releases deploy automatically via GitHub Actions + VPS webhook. For manual updates (e.g. config changes without a new release), `scp` the updated `docker-compose-prod.yml` to the VPS, then:
+Tagged releases deploy automatically. For manual updates (e.g. compose file changes):
 
 ```bash
+# From local machine
+scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
+
+# On the VPS
 docker compose -f docker-compose-prod.yml pull server
 docker compose -f docker-compose-prod.yml up -d --force-recreate --no-deps server
 ```
@@ -93,9 +72,10 @@ docker compose -f docker-compose-prod.yml up -d --force-recreate --no-deps serve
 
 | Problem | Solution |
 |---------|----------|
+| 502 Bad Gateway | Server container not running: `docker compose -f docker-compose-prod.yml ps` |
 | Services unhealthy | `docker compose -f docker-compose-prod.yml logs server` |
-| SSL failed | Verify DNS: `dig +short your-domain.com` |
-| Port conflict | `sudo ss -tlnp | grep -E ":(80|443|8080)"` |
+| SSL certificate error | Verify DNS: `dig +short your-domain.com` |
+| Port conflict on 8080 | `sudo ss -tlnp | grep 8080` — another process on that port |
 
 ## Backup
 
@@ -106,8 +86,8 @@ docker compose -f docker-compose-prod.yml exec -T postgres \
 
 ## More
 
-- [Setup Guide](../getting-started/SETUP.md) - Initial configuration
 - [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) - GitHub Actions + webhook deploy
+- [Setup Guide](../getting-started/SETUP.md) - Initial configuration
+- [SSL Setup](SSL_SETUP.md) - Advanced SSL options
 - [Kubernetes](KUBERNETES.md) - Deploy to a Kubernetes cluster
-- [SSL Setup](SSL_SETUP.md) - Advanced SSL
 - [Security Checklist](../security/CHECKLIST.md)

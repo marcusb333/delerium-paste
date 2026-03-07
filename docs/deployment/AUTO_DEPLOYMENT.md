@@ -38,57 +38,47 @@ Go to **Settings → Secrets and variables → Actions** and add:
 
 Generate `DEPLOY_TOKEN` with: `openssl rand -hex 32`
 
-### 2. VPS Webhook Listener
+### 2. VPS Setup (webhook + .env + nginx)
 
-The VPS does not need git. Copy the setup script from your local machine:
+Copy the required files from your local machine:
 
 ```bash
-scp scripts/vps-setup.sh noob@your-vps:/tmp/
+scp scripts/vps-setup.sh scripts/nginx-snippet.conf noob@your-vps:/tmp/
+scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
 ```
 
-Then on the VPS as root:
+Run the setup script on the VPS as root — it installs `webhook`, generates `.env` with random secrets, configures the systemd service, and prints next steps:
 
 ```bash
 export DEPLOY_TOKEN="your-deploy-token-here"   # must match the GitHub secret above
 sudo -E bash /tmp/vps-setup.sh
 ```
 
-This installs and starts `webhook` as a systemd service on port 9000, and creates `/opt/deploy.sh`.
+#### SSL with nginx
 
-### 3. Nginx Proxy
-
-Copy the snippet from your local machine and add it to your nginx `server {}` block:
+`scripts/nginx-snippet.conf` is a complete server block template. Install it and get a certificate:
 
 ```bash
-scp scripts/nginx-snippet.conf noob@your-vps:/tmp/
+sudo cp /tmp/nginx-snippet.conf /etc/nginx/sites-available/delerium
+sudo ln -s /etc/nginx/sites-available/delerium /etc/nginx/sites-enabled/
+# Edit the file and replace 'your-domain.com' with your actual domain
+sudo nano /etc/nginx/sites-available/delerium
+
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com
+sudo systemctl reload nginx
 ```
 
-On the VPS, paste the contents into your existing nginx site config, then reload:
+The template proxies `/` to the server on `127.0.0.1:8080` and `/hooks/` to the webhook on `127.0.0.1:9000`.
+
+### 3. Start Services
 
 ```bash
-sudo nginx -t && sudo systemctl reload nginx
+cd /home/noob/delerium-paste
+IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
 ```
 
-This proxies `https://your-domain.com/hooks/` to the webhook listener on port 9000.
-
-### 4. VPS files
-
-The VPS only needs two files: `docker-compose-prod.yml` and `.env`. Copy the compose file:
-
-```bash
-scp docker-compose-prod.yml noob@your-vps:/home/noob/delerium-paste/
-```
-
-Create `.env` on the VPS (never commit this):
-
-```bash
-mkdir -p /home/noob/delerium-paste
-cat > /home/noob/delerium-paste/.env <<EOF
-DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 16)
-DB_PASSWORD=<same as POSTGRES_PASSWORD>
-EOF
-```
+After this, all future deploys are fully automatic.
 
 ## Triggering a Deployment
 
@@ -130,8 +120,9 @@ Only the `server` container is restarted. `postgres` is never touched.
 |---|---|
 | Build job fails | Verify `DOCKER_USERNAME` / `DOCKER_TOKEN` secrets are set correctly |
 | Deploy job returns 403 | `DEPLOY_TOKEN` secret doesn't match the token in `/opt/hooks/hooks.json` on VPS |
-| Deploy job: connection refused | nginx `/hooks/` proxy not configured, or `systemctl status webhook` shows it's not running |
-| Container exits immediately | `docker compose -f docker-compose-prod.yml logs server` — likely missing values in `.env` |
+| Deploy job: connection refused | nginx not configured, or `systemctl status webhook` shows it's not running |
+| Container exits immediately | `docker compose -f docker-compose-prod.yml logs server` — check `.env` values |
+| 502 Bad Gateway | Server container not running; check `docker compose -f docker-compose-prod.yml ps` |
 
 ## Disabling Auto-Deployment
 
