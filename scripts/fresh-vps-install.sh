@@ -190,6 +190,7 @@ services:
     environment:
       - DB_PATH=jdbc:postgresql://postgres:5432/delerium
       - DB_USER=delerium
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
       - DATA_ENC_KEYRING_PATH=/app/keyring.json
       - DATA_ENC_ROTATION_DAYS=30
     ports:
