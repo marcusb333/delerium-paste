@@ -23,4 +23,4 @@ echo "→ Copying installer to $VPS..."
 scp "${SSH_OPTS[@]}" "$INSTALLER" "$VPS":/tmp/fresh-vps-install.sh
 
 echo "→ Running installer on $VPS..."
-ssh "${SSH_OPTS[@]}" "$VPS" "WIPE_DATA=$WIPE_DATA bash /tmp/fresh-vps-install.sh"
+ssh "${SSH_OPTS[@]}" "$VPS" "WIPE_DATA=$WIPE_DATA sudo -E bash /tmp/fresh-vps-install.sh"
