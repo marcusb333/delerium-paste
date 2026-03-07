@@ -1,173 +1,123 @@
-# Automatic Deployment Setup
+# Automatic Deployment (CI/CD)
 
-This guide explains how to set up automatic deployments to your VPS using GitHub Actions.
+Every git tag matching `v*` triggers the full pipeline automatically via GitHub Actions.
 
-## Overview
+## How It Works
 
-Every time you push to the `main` branch, GitHub Actions will:
-
-1. ? Run linter, type checks, and unit tests
-2. ?? Build the client
-3. ?? Deploy to your VPS automatically
-4. ?? Run health checks to verify deployment
-
-## Setup Instructions
-
-### 1. Generate SSH Key for GitHub Actions
-
-On your **local machine**, generate a dedicated SSH key for deployments:
-
-```bash
-ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/github_actions_deploy
+```
+git tag v1.2.3 && git push origin v1.2.3
+        │
+        ▼
+GitHub Actions: .github/workflows/deploy.yml
+        │
+        ├── Job: build-and-push
+        │     ├── Build server Docker image (./server/Dockerfile)
+        │     └── Push to Docker Hub
+        │           ├── marcusb333/delerium-server:v1.2.3
+        │           └── marcusb333/delerium-server:latest
+        │
+        └── Job: deploy  (runs after build-and-push)
+              └── POST https://<VPS_HOST>/hooks/deploy
+                    └── VPS webhook pulls new image + recreates server container
 ```
 
-This creates two files:
+No SSH access, no manual docker push, no code pull on VPS. The VPS only ever pulls pre-built images from Docker Hub.
 
-- `~/.ssh/github_actions_deploy` (private key)
-- `~/.ssh/github_actions_deploy.pub` (public key)
+## One-Time Setup
 
-### 2. Add Public Key to VPS
+### 1. GitHub Secrets
 
-Copy the public key to your VPS:
+Go to **Settings → Secrets and variables → Actions** and add:
 
-```bash
-# Copy the public key
-cat ~/.ssh/github_actions_deploy.pub
+| Secret | Value |
+|---|---|
+| `DOCKER_USERNAME` | `marcusb333` |
+| `DOCKER_TOKEN` | Docker Hub access token (not your password) |
+| `VPS_HOST` | Your VPS domain or IP |
+| `DEPLOY_TOKEN` | A strong random secret (must match what you set on the VPS) |
 
-# SSH into your VPS
-ssh noob@your-vps-ip
+Generate `DEPLOY_TOKEN` with: `openssl rand -hex 32`
 
-# Add the key to authorized_keys
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-echo "YOUR_PUBLIC_KEY_HERE" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
+### 2. VPS Webhook Listener
 
-### 3. Add Secrets to GitHub
-
-Go to your GitHub repository:
-
-1. Navigate to **Settings** ? **Secrets and variables** ? **Actions**
-2. Click **New repository secret**
-3. Add these three secrets:
-
-| Secret Name | Value | Description |
-|-------------|-------|-------------|
-| `VPS_HOST` | `your-vps-ip-or-domain` | Your VPS IP address or domain |
-| `VPS_USER` | `noob` | Your VPS username |
-| `VPS_SSH_KEY` | Contents of `~/.ssh/github_actions_deploy` | The **private** SSH key |
-
-To get the private key contents:
+Run the setup script once on the VPS as root:
 
 ```bash
-cat ~/.ssh/github_actions_deploy
+# Set the deploy token before running (must match the GitHub secret above)
+export DEPLOY_TOKEN="your-deploy-token-here"
+sudo -E bash scripts/vps-setup.sh
 ```
 
-Copy the **entire output** including the `-----BEGIN` and `-----END` lines.
+This installs and starts `webhook` as a systemd service on port 9000, and creates `/opt/deploy.sh`.
 
-### 4. Test the Deployment
+### 3. Nginx Proxy
 
-#### Option A: Manual Trigger
-
-1. Go to **Actions** tab in GitHub
-2. Select **Deploy to VPS** workflow
-3. Click **Run workflow** ? **Run workflow**
-
-#### Option B: Push to Main
+Add the contents of `scripts/nginx-snippet.conf` to your existing nginx `server {}` block, then reload:
 
 ```bash
-git checkout main
-git merge ux  # or whatever branch you want to deploy
-git push origin main
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-The workflow will automatically trigger!
+This proxies `https://your-domain.com/hooks/` to the webhook listener on port 9000.
 
-### 5. Monitor Deployment
+### 4. VPS `.env` File
 
-1. Go to the **Actions** tab in your GitHub repository
-2. Click on the running workflow
-3. Watch the deployment progress in real-time
+On the VPS at `/home/noob/delerium-paste/.env` (copy from `.env.example`):
 
-## Workflow Steps
+```bash
+DELETION_TOKEN_PEPPER=$(openssl rand -hex 32)
+POSTGRES_PASSWORD=$(openssl rand -hex 16)
+DB_PASSWORD=<same as POSTGRES_PASSWORD>
+```
 
-### Test Job
+## Triggering a Deployment
 
-- Installs dependencies
-- Runs ESLint
-- Runs TypeScript type checking
-- Runs unit tests (174 tests)
-- Builds the client
+Deployments happen automatically when `scripts/release.sh` pushes a tag (Phase 3):
 
-### Deploy Job (only runs if tests pass)
+```bash
+./scripts/release.sh --patch   # or --minor / --major
+```
 
-- SSHs into your VPS
-- Pulls latest code from GitHub
-- Builds the client on VPS
-- Stops old Docker containers
-- Cleans up old images
-- Builds and starts new containers
-- Runs health checks
+To deploy a specific tag manually without a full release:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+## What Runs on the VPS
+
+The webhook calls `/opt/deploy.sh` with the tag as argument:
+
+```bash
+export IMAGE_TAG="v1.2.3"
+docker compose -f docker-compose-prod.yml pull server
+docker compose -f docker-compose-prod.yml up -d --force-recreate --no-deps server
+docker image prune -f
+```
+
+Only the `server` container is restarted. `postgres` is never touched.
+
+## Monitoring
+
+- **GitHub Actions run**: Actions tab → `Build and Deploy` workflow
+- **VPS webhook logs**: `sudo journalctl -u webhook -f`
+- **Server container logs**: `docker compose -f docker-compose-prod.yml logs -f server`
 
 ## Troubleshooting
 
-### Deployment Fails with "Permission denied"
-
-- Make sure the SSH key is added to `~/.ssh/authorized_keys` on the VPS
-- Check that the private key is correctly added to GitHub secrets
-
-### Deployment Fails with "Port already allocated"
-
-SSH into your VPS and clean up:
-
-```bash
-docker stop $(docker ps -aq)
-docker rm $(docker ps -aq)
-docker system prune -af
-```
-
-### Tests Fail
-
-Check the Actions tab to see which test failed:
-
-- Linter errors: Run `npm run lint:fix` locally
-- Type errors: Run `npm run typecheck` locally
-- Unit tests: Run `npm run test:unit` locally
-
-### View VPS Logs
-
-```bash
-ssh noob@your-vps-ip
-cd ~/delerium-paste
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-## Manual Deployment (Fallback)
-
-If you need to deploy manually:
-
-```bash
-./deploy.sh vps-setup your-domain.com your@email.com
-```
-
-## Security Notes
-
-- ? The SSH key is dedicated for deployments only
-- ? GitHub Secrets are encrypted and never exposed in logs
-- ? The workflow only deploys on push to `main` branch
-- ? Tests must pass before deployment happens
-- ? Health checks verify successful deployment
+| Symptom | Check |
+|---|---|
+| Build job fails | Verify `DOCKER_USERNAME` / `DOCKER_TOKEN` secrets are set correctly |
+| Deploy job returns 403 | `DEPLOY_TOKEN` secret doesn't match the token in `/opt/hooks/hooks.json` on VPS |
+| Deploy job: connection refused | nginx `/hooks/` proxy not configured, or `systemctl status webhook` shows it's not running |
+| Container exits immediately | `docker compose -f docker-compose-prod.yml logs server` — likely missing values in `.env` |
 
 ## Disabling Auto-Deployment
 
-To temporarily disable auto-deployment:
-
-1. Go to **Settings** ? **Actions** ? **General**
-2. Under **Actions permissions**, select **Disable actions**
-
-Or delete/rename the workflow file:
+Rename or delete the workflow file:
 
 ```bash
 git mv .github/workflows/deploy.yml .github/workflows/deploy.yml.disabled
+git commit -m "chore: disable auto-deploy" && git push
 ```

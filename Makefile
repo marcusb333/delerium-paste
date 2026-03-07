@@ -65,7 +65,7 @@ help:
 	@echo "  make deploy-full   - Full pipeline: clean, build, test, and deploy"
 	@echo "  make build-multiarch - Validate multi-architecture Docker build (no local load)"
 	@echo "  make build-local     - Build and load single-arch image for current host"
-	@echo "  make push-multiarch  - Build and push multi-architecture images to registry"
+	@echo "  make push-multiarch  - Build and push multi-architecture images to registry (manual fallback; CI/CD uses deploy.yml)"
 	@echo ""
 	@echo "☸️  Kubernetes:"
 	@echo "  make k8s-setup     - Interactive first-time setup (domain, email, pepper)"
@@ -153,7 +153,11 @@ build-server-image:
 	docker compose build server
 	@echo "✅ Server image built (marcusb333/delerium-server:latest)"
 
-# Build clean server image and push to Docker Hub with version tag; use: make push-server-version VERSION=v1.0.9
+# Manual fallback: build and push server image locally.
+# In normal releases this is NOT needed — pushing a git tag triggers GitHub Actions
+# (.github/workflows/deploy.yml) which builds and pushes automatically.
+# Only use this when you need to push outside of the CI/CD pipeline.
+# Usage: make push-server-version VERSION=v1.0.9
 push-server-version:
 	@if [ -z "$(VERSION)" ]; then \
 		echo "❌ VERSION required. Usage: make push-server-version VERSION=v1.0.9"; \

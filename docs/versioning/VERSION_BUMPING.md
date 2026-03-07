@@ -68,35 +68,26 @@ make version-bump-dry-run VERSION=1.0.7
    - Create a GitHub release
    - Automatically bump to the next version (1.0.8) via PR
 
-### Automated Release via GitHub Actions
+### Automated Release via `scripts/release.sh`
 
-#### Option 1: Manual Workflow Dispatch
+Run the release script from `main`:
 
-1. Go to **Actions** → **Release Workflow**
-2. Click **Run workflow**
-3. Enter the version number (e.g., `1.0.7`)
-4. The workflow will:
-   - Verify the version matches the codebase
-   - Create a git tag
-   - Create a GitHub release
-   - Automatically bump to the next version
+```bash
+./scripts/release.sh --patch   # or --minor / --major
+```
 
-#### Option 2: Release Branch Push
+The script:
+1. Bumps the version across all files and opens a release PR
+2. Waits for the PR to merge
+3. Creates and pushes the git tag (e.g. `v1.0.7`)
+4. Creates a GitHub release with auto-generated notes
+5. Opens a follow-up PR bumping to the next dev version (e.g. `1.0.8-alpha`)
 
-When you push to a branch matching `release/**`:
-- The workflow automatically detects the version from the branch name
-- Creates a tag and release
-- Bumps to the next version
+Once the tag is pushed, GitHub Actions (`.github/workflows/deploy.yml`) automatically builds the Docker image, pushes it to Docker Hub, and deploys to the VPS via webhook.
 
-## Post-Release Automation
+## Post-Release Dev Bump
 
-After a release is published on GitHub, the `version-bump.yml` workflow automatically:
-1. Extracts the released version from the tag
-2. Calculates the next patch version (1.0.7 → 1.0.8)
-3. Creates a new branch with the version bump
-4. Opens a Pull Request to merge the version bump into `main`
-
-This ensures the codebase is always ready for the next release.
+`scripts/release.sh` handles the post-release version bump automatically in Phase 4. It creates a branch (`chore/bump-version-X.Y.Z-alpha`) and opens a PR into `main`, so the codebase is immediately ready for the next development cycle.
 
 ## Version Format
 
@@ -192,6 +183,7 @@ The script validates version format. Use semantic versioning:
 
 ## Related Documentation
 
-- [Release Workflow](../.github/workflows/release.yml)
-- [Version Bump Workflow](../.github/workflows/version-bump.yml)
-- [Version Bump Script](../scripts/bump-version.sh)
+- [Deploy Workflow](../.github/workflows/deploy.yml) - builds image + deploys on git tag push
+- [Release Script](../scripts/release.sh) - end-to-end release automation
+- [Version Bump Script](../scripts/bump-version.sh) - updates version in all files
+- [Auto-deploy (CI/CD)](../docs/deployment/AUTO_DEPLOYMENT.md)

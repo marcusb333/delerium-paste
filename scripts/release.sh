@@ -3,13 +3,16 @@
 # End-to-end release automation for Delerium Paste
 #
 # Usage:
-#   ./scripts/release.sh [--patch|--minor|--major] [--dry-run] [--no-wait] [--continue] [--skip-docker]
+#   ./scripts/release.sh [--patch|--minor|--major] [--dry-run] [--no-wait] [--continue]
 #
 # Phases:
 #   1. Release PR   — strip pre-release suffix, bump version, open PR
 #   2. Wait for merge — poll until PR is merged (or --no-wait to exit)
-#   3. Post-merge   — tag, GitHub release, Docker push
+#   3. Post-merge   — tag, GitHub release
 #   4. Dev bump PR  — bump to next dev version (e.g., 1.2.0-alpha), open PR
+#
+# Docker image build & push is handled automatically by GitHub Actions
+# (.github/workflows/deploy.yml) when the git tag is pushed in Phase 3.
 #
 # State is persisted in .release-state so --continue can resume after interruption.
 
@@ -31,20 +34,18 @@ BUMP_TYPE="patch"
 DRY_RUN=false
 NO_WAIT=false
 CONTINUE=false
-SKIP_DOCKER=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --patch)       BUMP_TYPE="patch" ;;
-        --minor)       BUMP_TYPE="minor" ;;
-        --major)       BUMP_TYPE="major" ;;
-        --dry-run)     DRY_RUN=true ;;
-        --no-wait)     NO_WAIT=true ;;
-        --continue)    CONTINUE=true ;;
-        --skip-docker) SKIP_DOCKER=true ;;
+        --patch)    BUMP_TYPE="patch" ;;
+        --minor)    BUMP_TYPE="minor" ;;
+        --major)    BUMP_TYPE="major" ;;
+        --dry-run)  DRY_RUN=true ;;
+        --no-wait)  NO_WAIT=true ;;
+        --continue) CONTINUE=true ;;
         *)
             echo -e "${RED}Unknown flag: $1${NC}"
-            echo "Usage: $0 [--patch|--minor|--major] [--dry-run] [--no-wait] [--continue] [--skip-docker]"
+            echo "Usage: $0 [--patch|--minor|--major] [--dry-run] [--no-wait] [--continue]"
             exit 1
             ;;
     esac
@@ -350,14 +351,10 @@ phase_post_merge() {
         success "GitHub release created for ${tag}"
     fi
 
-    # Docker push (multi-arch: linux/amd64 + linux/arm64)
-    if [ "$SKIP_DOCKER" = false ]; then
-        info "Building and pushing multi-arch Docker image..."
-        make push-multiarch REGISTRY=marcusb333 TAG="$tag"
-        success "Docker image pushed: marcusb333/delerium-server:${tag} (amd64 + arm64)"
-    else
-        warn "Skipping Docker push (--skip-docker)"
-    fi
+    # GitHub Actions (deploy.yml) automatically builds and pushes the Docker image
+    # to Docker Hub (marcusb333/delerium-server:<tag> + :latest) and then calls
+    # the VPS webhook to deploy, triggered by the git tag push above.
+    info "GitHub Actions will build & push Docker image and deploy to VPS automatically."
 
     save_state "PHASE" "dev_bump"
     success "Post-merge tasks complete"
