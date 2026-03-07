@@ -27,16 +27,22 @@ else
   PEPPER=$(openssl rand -hex 32)
   PG_PASS=$(openssl rand -hex 16)
   cat > "$ENV_FILE" <<EOF
+# Application secrets
 DELETION_TOKEN_PEPPER=${PEPPER}
 POSTGRES_PASSWORD=${PG_PASS}
 DB_PASSWORD=${PG_PASS}
+
+# SSL / Let's Encrypt — used by certbot and nginx config
+DOMAIN=your-domain.com
+SSL_EMAIL=admin@your-domain.com
 EOF
   chmod 600 "$ENV_FILE"
   echo "[setup] .env written. Values:"
   echo "        DELETION_TOKEN_PEPPER=${PEPPER}"
   echo "        POSTGRES_PASSWORD=${PG_PASS}"
-  echo "        DB_PASSWORD=${PG_PASS}"
   echo "        Store these somewhere safe — they cannot be recovered if lost."
+  echo ""
+  echo "  !! Edit ${ENV_FILE} and set DOMAIN and SSL_EMAIL before running certbot !!"
 fi
 
 # ---------------------------------------------------------------------------
