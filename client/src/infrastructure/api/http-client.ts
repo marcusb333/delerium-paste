@@ -68,7 +68,7 @@ export class HttpApiClient implements IApiClient {
     } catch (err) {
       clearTimeout(timeoutId);
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('Request timed out. The server may be slow or unreachable. Please try again.');
+        throw new Error('Request timed out. The server may be slow or unreachable. Please try again.', { cause: err });
       }
       throw err;
     }
