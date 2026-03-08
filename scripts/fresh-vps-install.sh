@@ -99,8 +99,8 @@ echo ""
 # ── 2. Install system dependencies ────────────────────────────────────────────
 log "Step 2/9 — Installing system packages..."
 apt-get update -qq
-apt-get install -y -qq curl openssl nginx certbot python3-certbot-nginx make
-ok "curl, openssl, nginx, certbot, make installed"
+apt-get install -y -qq curl openssl nginx certbot python3-certbot-nginx make webhook
+ok "curl, openssl, nginx, certbot, make, webhook installed"
 
 # Docker
 if ! command -v docker &>/dev/null; then
@@ -136,11 +136,13 @@ else
     log "Generating secrets..."
     PEPPER=$(openssl rand -hex 32)
     PG_PASS=$(openssl rand -hex 16)
+    DEPLOY_TOKEN=$(openssl rand -hex 32)
     cat > "$ENV_FILE" <<EOF
 # Delerium — generated $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # WARNING: Do not change these values after first deploy — existing data will become inaccessible.
 DELETION_TOKEN_PEPPER=${PEPPER}
 POSTGRES_PASSWORD=${PG_PASS}
+DEPLOY_TOKEN=${DEPLOY_TOKEN}
 EOF
     chmod 600 "$ENV_FILE"
     ok "Secrets written to $ENV_FILE  ← back this file up!"
@@ -219,6 +221,53 @@ docker image prune -f
 echo "Update complete. Running: $(docker compose images server --quiet)"
 SCRIPT
 chmod 755 "$INSTALL_DIR/update.sh"
+
+# ── 5b. Set up deploy webhook service ─────────────────────────────────────────
+log "Setting up deploy webhook service..."
+
+# Read DEPLOY_TOKEN from .env (works for both fresh install and re-install)
+DEPLOY_TOKEN=$(grep '^DEPLOY_TOKEN=' "$ENV_FILE" | cut -d= -f2)
+
+mkdir -p /opt/hooks
+cat > /opt/hooks/hooks.json <<EOF
+[
+  {
+    "id": "deploy",
+    "execute-command": "${INSTALL_DIR}/update.sh",
+    "command-working-directory": "${INSTALL_DIR}",
+    "trigger-rule": {
+      "match": {
+        "type": "value",
+        "value": "${DEPLOY_TOKEN}",
+        "parameter": {
+          "source": "header",
+          "name": "X-Deploy-Token"
+        }
+      }
+    }
+  }
+]
+EOF
+chmod 600 /opt/hooks/hooks.json
+
+cat > /etc/systemd/system/webhook.service <<'SVCEOF'
+[Unit]
+Description=Delerium deploy webhook listener
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/webhook -hooks /opt/hooks/hooks.json -port 9000
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+systemctl daemon-reload
+systemctl enable --now webhook
+ok "Deploy webhook listening on :9000"
 
 # ── 6. Configure nginx (HTTP-only first so certbot ACME works) ────────────────
 log "Step 5/9 — Configuring nginx (HTTP, pre-SSL)..."
@@ -314,6 +363,15 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # Deploy webhook — token-authenticated, proxied to local webhook service
+    location /hooks/ {
+        proxy_pass         http://127.0.0.1:9000/hooks/;
+        proxy_http_version 1.1;
+        proxy_set_header   Host \$host;
+        proxy_set_header   X-Real-IP \$remote_addr;
+        proxy_read_timeout 30s;
+    }
+
     # Everything else — static assets + SPA served by the Delerium container
     location / {
         proxy_pass         http://127.0.0.1:8080;
@@ -390,4 +448,8 @@ echo "    bash update.sh                          # pull & restart latest"
 echo "    docker compose down                     # stop everything"
 echo ""
 echo "  Secrets: $ENV_FILE  ← keep a safe backup of this file!"
+echo ""
+echo "  GitHub Actions secrets required:"
+echo "    DEPLOY_TOKEN = ${DEPLOY_TOKEN}"
+echo "    VPS_HOST     = ${DOMAIN}"
 echo ""
