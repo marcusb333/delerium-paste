@@ -4,6 +4,7 @@
   "description": "Client-side TypeScript for zkpaste",
   "scripts": {
     "build": "npx tsc",
+    "postbuild": "node scripts/inject-version.js",
     "watch": "npx tsc --watch",
     "typecheck": "npx tsc --noEmit",
     "eslint": "npx eslint src/**/*.ts",
