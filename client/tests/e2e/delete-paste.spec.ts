@@ -396,7 +396,7 @@ test.describe('Delete Page - UI and UX', () => {
     // Verify version display
     const versionDisplay = page.locator('.version-display');
     await expect(versionDisplay).toBeVisible();
-    await expect(versionDisplay).toContainText('v1.4.6');
+    await expect(versionDisplay).toContainText('v1.4.7');
     
     // Verify it links to GitHub
     await expect(versionDisplay).toHaveAttribute('href', 'https://github.com/SnarkyB/delerium-paste');
