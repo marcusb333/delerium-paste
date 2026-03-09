@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop fresh-vps-install bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start generate-local-certs deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop fresh-vps-install bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
 
 # Default target
 help:
@@ -93,11 +93,17 @@ setup:
 	@chmod +x scripts/setup.sh
 	./scripts/setup.sh
 
+# Generate local TLS certs (self-signed, for localhost dev only)
+generate-local-certs:
+	@chmod +x scripts/generate-local-certs.sh
+	@./scripts/generate-local-certs.sh
+
 # Start everything
-start: build-client
+start: build-client generate-local-certs
 	@echo "🚀 Starting Delirium stack..."
 	docker compose up -d
-	@echo "✅ Services started! Access at http://localhost:8080"
+	@echo "✅ Services started! Access at https://localhost:8443"
+	@echo "   (Accept the self-signed cert warning in your browser)"
 	@echo "📊 Check status: make logs"
 
 # Stop all containers
@@ -115,10 +121,10 @@ logs:
 	docker compose logs -f
 
 # Development mode with hot-reload
-dev:
+dev: generate-local-certs
 	@echo "🔧 Starting development mode..."
 	@echo "📝 Backend will run in Docker, frontend will watch for changes"
-	@echo "🌐 Access at http://localhost:8080"
+	@echo "🌐 Access at https://localhost:8443"
 	@echo ""
 	@chmod +x scripts/dev.sh
 	./scripts/dev.sh

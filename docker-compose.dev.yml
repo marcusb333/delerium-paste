@@ -11,22 +11,9 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   server:
-    # Expose port for direct access during development
-    ports:
-      - "8080:8080"
-    # Mount only the files the browser needs (not node_modules/src/tests)
-    volumes:
-      - ./client/js:/app/static/js:ro
-      - ./client/styles:/app/static/styles:ro
-      - ./client/vendor:/app/static/vendor:ro
-      - ./client/index.html:/app/static/index.html:ro
-      - ./client/view.html:/app/static/view.html:ro
-      - ./client/delete.html:/app/static/delete.html:ro
-      - ./client/favicon.svg:/app/static/favicon.svg:ro
     # Add development environment variables
     environment:
       - DELETION_TOKEN_PEPPER=dev-pepper-change-me
-      - STATIC_DIR=/app/static
       - LOG_LEVEL=DEBUG
     # Health check with shorter intervals for faster feedback
     healthcheck:
@@ -35,7 +22,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-    # Docker watch configuration for server
+    # Docker watch: rebuild server on source changes
     develop:
       watch:
         - action: rebuild
@@ -44,24 +31,34 @@ services:
           path: ./server/BUILD.bazel
         - action: rebuild
           path: ./server/Dockerfile
-        - action: sync+restart
+
+  web:
+    # Static files served directly from the client build directory
+    volumes:
+      - ./reverse-proxy/nginx-local-https.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl/local:/etc/nginx/ssl:ro
+      - ./client:/usr/share/nginx/html:ro
+    # Docker watch: sync client file changes into nginx without restart
+    develop:
+      watch:
+        - action: sync
           path: ./client/js
-          target: /app/static/js
-        - action: sync+restart
+          target: /usr/share/nginx/html/js
+        - action: sync
           path: ./client/styles
-          target: /app/static/styles
-        - action: sync+restart
+          target: /usr/share/nginx/html/styles
+        - action: sync
           path: ./client/index.html
-          target: /app/static/index.html
-        - action: sync+restart
+          target: /usr/share/nginx/html/index.html
+        - action: sync
           path: ./client/view.html
-          target: /app/static/view.html
-        - action: sync+restart
+          target: /usr/share/nginx/html/view.html
+        - action: sync
           path: ./client/delete.html
-          target: /app/static/delete.html
-        - action: sync+restart
+          target: /usr/share/nginx/html/delete.html
+        - action: sync
           path: ./client/favicon.svg
-          target: /app/static/favicon.svg
-        - action: sync+restart
+          target: /usr/share/nginx/html/favicon.svg
+        - action: sync
           path: ./client/vendor
-          target: /app/static/vendor
+          target: /usr/share/nginx/html/vendor
