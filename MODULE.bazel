@@ -19,6 +19,7 @@ maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 # Ktor 3.2.0: now possible with rules_kotlin 2.2.2 (Kotlin 2.2.21).
 # Netty 4.2.4 overrides transitives from Ktor to address CVE-2025-55163, CVE-2025-24970, CVE-2025-58057, CVE-2025-67735, CVE-2025-25193.
 # Log4j 2.25.3 addresses CVE-2025-68161 (2.24.1).
+# Jackson 2.21.1 overrides transitives to address GHSA-72hv-8253-57qq (async parser number length bypass, DoS).
 maven.install(
     artifacts = [
         # Ktor dependencies (3.0.2 -> 3.2.0)
@@ -32,6 +33,10 @@ maven.install(
         "io.ktor:ktor-server-rate-limit-jvm:3.2.0",
         "io.ktor:ktor-server-status-pages-jvm:3.2.0",
         "io.ktor:ktor-server-host-common-jvm:3.2.0",
+        # Jackson overrides (security: 2.21.1 fixes GHSA-72hv-8253-57qq — async parser DoS)
+        "com.fasterxml.jackson.core:jackson-core:2.21.1",
+        "com.fasterxml.jackson.core:jackson-databind:2.21.1",
+        "com.fasterxml.jackson.core:jackson-annotations:2.21",
         # Netty overrides (security: 4.2.8.Final fixes CVE-2025-58057, CVE-2025-67735, CVE-2025-58056)
         "io.netty:netty-codec-http2:4.2.8.Final",
         "io.netty:netty-handler:4.2.8.Final",
@@ -52,7 +57,7 @@ maven.install(
         # Crypto
         "org.bouncycastle:bcprov-jdk18on:1.80",
         # Test dependencies
-        "com.fasterxml.jackson.module:jackson-module-kotlin:2.19.0",
+        "com.fasterxml.jackson.module:jackson-module-kotlin:2.21.1",
         "junit:junit:4.13.2",
         "org.jetbrains.kotlin:kotlin-test-junit:2.2.0",
         "io.ktor:ktor-server-test-host-jvm:3.2.0",
