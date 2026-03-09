@@ -315,6 +315,32 @@ GET    /api/pastes/:id/messages # Get all encrypted chat messages
 
 **POST /api/pastes/:id/messages** → `{ct, iv}` | **GET** → `{messages: [{ct, iv, timestamp}]}`
 
+## Version Bumping
+
+Always use `make version-bump VERSION=x.y.z` (which calls `scripts/bump-version.sh`) to update the version. **Never edit version strings manually.**
+
+The bump script updates: `client/package.json`, `MODULE.bazel`, `client/index.html`, `client/view.html`, `client/delete.html`, `client/tests/e2e/delete-paste.spec.ts`, `server/docs/API.md`.
+
+After running the script, also manually update image tags in:
+- `docker-compose.yml`
+- `docker-compose.prod.yml`
+- `k8s/server/deployment.yaml`
+
+And regenerate the lock: `npm --prefix client install --package-lock-only`
+
+### Out-of-sync files
+
+If the HTML files are at a different version than `package.json` (e.g. after a bad bump), use `--force` mode which replaces any semver pattern rather than exact-matching the current version:
+
+```bash
+make version-bump VERSION=x.y.z  # may miss out-of-sync HTML
+./scripts/bump-version.sh x.y.z --force  # fixes all files regardless of current version
+```
+
+**Always verify the UI shows the correct version** by checking the `version-display` anchors in `client/index.html`, `view.html`, and `delete.html` after any bump.
+
+---
+
 ## Git Workflow & Commits
 
 ### Branches
