@@ -667,6 +667,6 @@ Error responses include a JSON body with an `error` field describing the issue.
 
 ## Version
 
-Current API version: **1.4.6**
+Current API version: **1.4.7**
 
 API versioning may be added in future releases if breaking changes are needed.
