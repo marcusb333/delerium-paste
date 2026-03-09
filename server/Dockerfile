@@ -7,7 +7,7 @@ COPY client/ ./
 RUN npm run build
 
 # ---- Stage 2: Build server ----
-FROM eclipse-temurin:25-jdk-jammy AS server-builder
+FROM eclipse-temurin:25.0.2_10-jre-jammy AS server-builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
