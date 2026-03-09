@@ -111,8 +111,8 @@ if [ "$FORCE" = true ]; then
 
     replace_version \
         "MODULE.bazel" \
-        "version = \"${VER_RE}\"" \
-        "version = \"${NEW_VERSION}\"" \
+        "(name = \"delerium_paste\",.*version = \")${VER_RE}(\")" \
+        "\1${NEW_VERSION}\2" \
         "Bazel module version"
 
     for html_file in "client/index.html" "client/view.html" "client/delete.html"; do
@@ -144,8 +144,8 @@ else
 
     replace_version \
         "MODULE.bazel" \
-        "\"version\": \"${CURRENT_VERSION}\"," \
-        "\"version\": \"${NEW_VERSION}\"," \
+        "(name = \"delerium_paste\",.*version = \")${CURRENT_VERSION}(\")" \
+        "\1${NEW_VERSION}\2" \
         "Bazel module version"
 
     for html_file in "client/index.html" "client/view.html" "client/delete.html"; do
