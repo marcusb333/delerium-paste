@@ -132,6 +132,9 @@ jobs:
         run: |
           echo "DELETION_TOKEN_PEPPER=test-pepper-for-ci-$(date +%s)" > .env
 
+      - name: Generate self-signed TLS certs for local nginx
+        run: bash scripts/generate-local-certs.sh
+
       - name: Docker Compose config validation
         run: docker compose -f docker-compose.yml config
 
@@ -163,7 +166,7 @@ jobs:
           echo "Testing server health endpoint..."
           SERVER_HEALTHY=false
           for i in {1..5}; do
-            if timeout 5 curl -f http://localhost/health > /dev/null 2>&1; then
+            if timeout 5 curl -fk https://localhost:8443/health > /dev/null 2>&1; then
               echo "Server is responding!"
               SERVER_HEALTHY=true
               break
