@@ -47,6 +47,18 @@ if ! command -v npm > /dev/null 2>&1; then
 fi
 
 echo "✅ npm $(npm --version) is installed"
+
+# Check curl
+if ! command -v curl > /dev/null 2>&1; then
+    echo "❌ curl is not installed. Please install curl and try again."
+    exit 1
+fi
+echo "✅ curl is installed"
+echo ""
+
+# Generate local TLS certs if needed
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/generate-local-certs.sh"
 echo ""
 
 # Install client dependencies
@@ -81,7 +93,7 @@ fi
 # Start services
 echo ""
 echo "🐳 Starting Delirium services..."
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
@@ -89,13 +101,13 @@ sleep 5
 
 # Health check
 echo "🏥 Checking service health..."
-if curl -s http://localhost:8080/ > /dev/null 2>&1; then
+if curl -sk https://localhost:8443/ > /dev/null 2>&1; then
     echo "✅ Frontend is accessible"
 else
     echo "⚠️  Frontend might not be ready yet"
 fi
 
-if curl -s http://localhost:8080/api/health > /dev/null 2>&1; then
+if curl -sk https://localhost:8443/api/health > /dev/null 2>&1; then
     echo "✅ API is responding"
 else
     echo "⚠️  API might not be ready yet"
@@ -105,11 +117,11 @@ echo ""
 echo "🎉 Setup complete!"
 echo ""
 echo "📊 Service Status:"
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.dev.yml ps
 echo ""
 echo "🌐 Access your application:"
-echo "   Frontend: http://localhost:8080"
-echo "   API:      http://localhost:8080/api"
+echo "   Frontend: https://localhost:8443"
+echo "   API:      https://localhost:8443/api"
 echo ""
 echo "📋 Useful commands:"
 echo "   make logs     - View logs"
@@ -125,21 +137,21 @@ if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ] || [ "$(uname)" = "Darwin" ]; 
     if [ -z "$HEADLESS" ] && [ -z "$NO_BROWSER" ]; then
         if command -v open > /dev/null 2>&1; then
             echo "🌐 Opening browser..."
-            open http://localhost:8080
+            open https://localhost:8443
         elif command -v xdg-open > /dev/null 2>&1; then
             echo "🌐 Opening browser..."
-            xdg-open http://localhost:8080
+            xdg-open https://localhost:8443
         else
-            echo "🌐 Please open http://localhost:8080 in your browser"
+            echo "🌐 Please open https://localhost:8443 in your browser"
         fi
     else
         echo "🌐 Browser opening skipped (HEADLESS or NO_BROWSER set)"
-        echo "   Access at: http://localhost:8080"
+        echo "   Access at: https://localhost:8443"
     fi
 else
     # Headless environment detected
     echo "🖥️  Headless environment detected"
-    echo "🌐 Access your application at: http://localhost:8080"
+    echo "🌐 Access your application at: https://localhost:8443"
     echo "   (No browser will be opened automatically)"
 fi
 

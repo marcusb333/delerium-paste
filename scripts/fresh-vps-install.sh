@@ -216,7 +216,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -426,7 +426,7 @@ echo ""
 log "Step 9/9 — Waiting for server to become healthy (up to 90 s)..."
 HEALTHY=0
 for i in $(seq 1 18); do
-    if curl -sf http://127.0.0.1:8080/health >/dev/null 2>&1; then
+    if curl -sf http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
         HEALTHY=1
         break
     fi

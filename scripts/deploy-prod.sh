@@ -420,7 +420,7 @@ RETRY_COUNT=0
 HEALTHY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -sf http://localhost/health > /dev/null 2>&1; then
+    if curl -sf http://localhost/api/health > /dev/null 2>&1; then
         HEALTHY=true
         break
     fi

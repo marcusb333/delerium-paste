@@ -166,7 +166,7 @@ jobs:
           echo "Testing server health endpoint..."
           SERVER_HEALTHY=false
           for i in {1..5}; do
-            if timeout 5 curl -fk https://localhost:8443/health > /dev/null 2>&1; then
+            if timeout 5 curl -fk https://localhost:8443/api/health > /dev/null 2>&1; then
               echo "Server is responding!"
               SERVER_HEALTHY=true
               break

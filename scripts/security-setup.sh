@@ -137,7 +137,7 @@ services:
           cpus: '0.25'
     # Security: Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -168,7 +168,7 @@ services:
           cpus: '0.1'
     # Security: Health check
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -228,7 +228,7 @@ while true; do
     fi
 
     # Check API health
-    if ! curl -s -f http://localhost:8080/health > /dev/null 2>&1; then
+    if ! curl -s -f http://localhost:8080/api/health > /dev/null 2>&1; then
         log "⚠️  API health check failed"
     fi
 

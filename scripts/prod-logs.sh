@@ -10,7 +10,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
 
 # Detect docker-compose command
 if command -v docker-compose &> /dev/null; then
@@ -50,7 +50,7 @@ echo "   Press Ctrl+C to exit"
 echo ""
 
 if [ -n "$SERVICE" ]; then
-    $DOCKER_COMPOSE -f $COMPOSE_FILE logs $FOLLOW $TAIL_LINES $SERVICE
+    $DOCKER_COMPOSE $COMPOSE_FILES logs $FOLLOW $TAIL_LINES $SERVICE
 else
-    $DOCKER_COMPOSE -f $COMPOSE_FILE logs $FOLLOW $TAIL_LINES
+    $DOCKER_COMPOSE $COMPOSE_FILES logs $FOLLOW $TAIL_LINES
 fi

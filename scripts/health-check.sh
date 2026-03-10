@@ -76,7 +76,7 @@ else
 fi
 
 # Test health endpoint (if available)
-if curl -s -f http://localhost:8080/health > /dev/null 2>&1; then
+if curl -s -f http://localhost:8080/api/health > /dev/null 2>&1; then
     echo "✅ Health endpoint working"
 else
     echo "⚠️  Health endpoint not available (this is optional)"
@@ -114,10 +114,10 @@ echo "📊 Service Summary:"
 docker compose ps
 echo ""
 echo "🌐 Access URLs:"
-echo "   Frontend: http://localhost:8080"
-echo "   API:      http://localhost:8080/api"
-echo "   Health:   http://localhost:8080/api/health"
-echo "   PoW:      http://localhost:8080/api/pow"
+echo "   Frontend: https://localhost:8443"
+echo "   API:      https://localhost:8443/api"
+echo "   Health:   https://localhost:8443/api/health"
+echo "   PoW:      https://localhost:8443/api/pow"
 
 echo ""
 echo "📋 Useful commands:"
