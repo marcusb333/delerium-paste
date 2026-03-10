@@ -8,51 +8,28 @@ Push a git tag → GitHub Actions builds the Docker image → VPS webhook deploy
 
 ## First-Time VPS Setup
 
-**Requirements:** Ubuntu 22.04+, Docker, nginx, a domain pointing at the server.
+**Requirements:** Ubuntu 22.04+, a domain pointing at the server.
 
-Install Docker if not already present:
+Run the installer on your VPS — it handles everything: Docker, nginx, SSL, secrets, and the deploy webhook:
 
 ```bash
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker noob
+curl -fsSL https://raw.githubusercontent.com/marcusb333/delerium-paste/main/scripts/fresh-vps-install.sh | sudo bash
 ```
 
-Copy the required files from your local machine:
+The script will prompt you for your domain and SSL email, then confirm before making any changes. You can also pass them as environment variables for non-interactive use:
 
 ```bash
-scp docker-compose-prod.yml scripts/vps-setup.sh scripts/nginx-snippet.conf \
-    noob@your-vps:/tmp/
+curl -fsSL https://raw.githubusercontent.com/marcusb333/delerium-paste/main/scripts/fresh-vps-install.sh \
+  | sudo DOMAIN=paste.example.com SSL_EMAIL=admin@example.com bash
 ```
 
-Run setup on the VPS — this generates `.env` with random secrets, installs the webhook listener, and prints next steps:
+After the installer finishes, it prints the `DEPLOY_TOKEN` you need to add to your GitHub Secrets for CI/CD auto-deployment.
+
+To wipe all existing paste data before reinstalling:
 
 ```bash
-export DEPLOY_TOKEN="$(openssl rand -hex 32)"   # save this; add to GitHub Secrets too
-sudo -E bash /tmp/vps-setup.sh
-```
-
-Move the compose file and start services:
-
-```bash
-mv /tmp/docker-compose-prod.yml /home/noob/delerium-paste/
-cd /home/noob/delerium-paste
-IMAGE_TAG=latest docker compose -f docker-compose-prod.yml up -d
-```
-
-## SSL
-
-The server binds to `127.0.0.1:8080` only — nginx handles SSL termination.
-
-`scripts/nginx-snippet.conf` is a complete nginx server block template. Install it:
-
-```bash
-sudo cp /tmp/nginx-snippet.conf /etc/nginx/sites-available/delerium
-sudo ln -s /etc/nginx/sites-available/delerium /etc/nginx/sites-enabled/
-sudo nano /etc/nginx/sites-available/delerium   # replace 'your-domain.com'
-
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
-sudo systemctl reload nginx
+curl -fsSL https://raw.githubusercontent.com/marcusb333/delerium-paste/main/scripts/fresh-vps-install.sh \
+  | sudo WIPE_DATA=1 bash
 ```
 
 ## Updates
