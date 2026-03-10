@@ -47,7 +47,7 @@ jobs:
             ghcr.io/marcusb333/delerium-paste:${{ steps.extract-tag.outputs.tag }}-amd64
             marcusb333/delerium-server:${{ steps.extract-tag.outputs.tag }}-amd64
           cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
+          cache-to: type=gha,mode=min,scope=amd64
 
   build-arm64:
     name: Build ARM64
@@ -90,7 +90,7 @@ jobs:
             ghcr.io/marcusb333/delerium-paste:${{ steps.extract-tag.outputs.tag }}-arm64
             marcusb333/delerium-server:${{ steps.extract-tag.outputs.tag }}-arm64
           cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
+          cache-to: type=gha,mode=min,scope=arm64
 
   merge:
     name: Create Multi-Arch Manifest
