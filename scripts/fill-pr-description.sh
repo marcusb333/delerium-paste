@@ -105,7 +105,7 @@ echo "Calling Claude API..." >&2
 JSON_PAYLOAD=$(jq -n \
   --arg content "$PROMPT" \
   '{
-    model: "claude-opus-4-6",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
     messages: [{role: "user", content: $content}]
   }')
