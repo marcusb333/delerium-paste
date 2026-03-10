@@ -5,7 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
 
 # Color codes
 GREEN='\033[0;32m'
@@ -32,13 +32,13 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Check if containers are running
-if ! $DOCKER_COMPOSE -f $COMPOSE_FILE ps | grep -q "Up"; then
+if ! $DOCKER_COMPOSE $COMPOSE_FILES ps | grep -q "Up"; then
     echo -e "${YELLOW}⚠️  No containers are currently running${NC}"
     exit 0
 fi
 
 echo -e "${YELLOW}🔄 Stopping containers...${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE down
+$DOCKER_COMPOSE $COMPOSE_FILES down
 
 echo ""
 echo -e "${GREEN}✅ Production containers stopped${NC}"

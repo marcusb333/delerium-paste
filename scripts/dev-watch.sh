@@ -33,6 +33,22 @@ if ! command -v node > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check npm
+if ! command -v npm > /dev/null 2>&1; then
+    echo "❌ npm is not installed. Please install Node.js 18+ (includes npm) and try again."
+    exit 1
+fi
+
+# Check curl (needed for health checks)
+if ! command -v curl > /dev/null 2>&1; then
+    echo "❌ curl is not installed. Please install curl and try again."
+    exit 1
+fi
+
+# Generate local TLS certs if needed
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$SCRIPT_DIR/generate-local-certs.sh"
+
 # Install client dependencies if needed
 if [ ! -d "client/node_modules" ]; then
     echo "📦 Installing client dependencies..."
@@ -66,8 +82,8 @@ echo ""
 echo "🚀 Starting Docker services with watch mode..."
 echo "👀 Docker will automatically sync file changes"
 echo "📝 TypeScript will automatically recompile on changes"
-echo "🌐 Frontend available at http://localhost:8080"
-echo "🔧 Backend API available at http://localhost:8081"
+echo "🌐 Frontend available at https://localhost:8443"
+echo "🔧 Backend API available at http://localhost:8080/api"
 echo ""
 echo "Press Ctrl+C to stop all services"
 echo ""

@@ -75,7 +75,7 @@ echo ""
 echo "🌐 Checking network security..."
 
 # Check if services are accessible
-if curl -s -f http://localhost:8080/health > /dev/null 2>&1; then
+if curl -s -f http://localhost:8080/api/health > /dev/null 2>&1; then
     echo "✅ Health endpoint accessible"
 else
     echo "⚠️  Health endpoint not accessible"

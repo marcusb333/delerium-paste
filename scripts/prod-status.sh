@@ -5,7 +5,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-COMPOSE_FILE="docker-compose.prod.yml"
+COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
 
 # Color codes
 GREEN='\033[0;32m'
@@ -26,6 +26,14 @@ fi
 
 cd "$PROJECT_DIR"
 
+# Load domain from .env if available
+DOMAIN=""
+if [ -f ".env" ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}📊 Delirium Production Status${NC}"
 echo -e "${BLUE}========================================${NC}"
@@ -33,11 +41,11 @@ echo ""
 
 # Container status
 echo -e "${BLUE}🐳 Container Status:${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE ps
+$DOCKER_COMPOSE $COMPOSE_FILES ps
 echo ""
 
 # Check if containers are running
-if ! $DOCKER_COMPOSE -f $COMPOSE_FILE ps | grep -q "Up"; then
+if ! $DOCKER_COMPOSE $COMPOSE_FILES ps | grep -q "Up"; then
     echo -e "${RED}❌ No containers are running${NC}"
     echo ""
     echo "Start with: ./scripts/deploy-prod.sh"
@@ -46,8 +54,8 @@ fi
 
 # API Health Check
 echo -e "${BLUE}🧪 API Health Check:${NC}"
-if curl -k -s https://localhost/api/health > /dev/null 2>&1; then
-    RESPONSE=$(curl -k -s https://localhost/api/health)
+if curl -s http://localhost/api/health > /dev/null 2>&1; then
+    RESPONSE=$(curl -s http://localhost/api/health)
     echo -e "${GREEN}✅ API is responding${NC}"
     echo -e "   Response: ${YELLOW}$RESPONSE${NC}"
 else
@@ -79,16 +87,20 @@ echo ""
 
 # Recent logs
 echo -e "${BLUE}📝 Recent Logs (last 10 lines):${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE logs --tail=10
+$DOCKER_COMPOSE $COMPOSE_FILES logs --tail=10
 echo ""
 
 # Access URLs
 echo -e "${BLUE}🌐 Access URLs:${NC}"
-echo -e "   HTTPS: ${GREEN}https://delerium.cc${NC}"
-echo -e "   HTTP:  ${GREEN}http://delerium.cc${NC} (redirects to HTTPS)"
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "localhost" ]; then
+    echo -e "   HTTPS: ${GREEN}https://$DOMAIN${NC}"
+    echo -e "   HTTP:  ${GREEN}http://$DOMAIN${NC} (redirects to HTTPS)"
+else
+    echo -e "   HTTP:  ${GREEN}http://localhost${NC}"
+fi
 echo ""
 
 # Uptime
 echo -e "${BLUE}⏱️  Container Uptime:${NC}"
-$DOCKER_COMPOSE -f $COMPOSE_FILE ps --format "table {{.Name}}\t{{.Status}}"
+$DOCKER_COMPOSE $COMPOSE_FILES ps --format "table {{.Name}}\t{{.Status}}"
 echo ""
