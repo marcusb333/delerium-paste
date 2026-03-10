@@ -16,8 +16,6 @@
 set -euo pipefail
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-DOMAIN="delerium.cc"
-SSL_EMAIL="admin@delerium.cc"
 INSTALL_DIR="/opt/delerium"
 IMAGE="marcusb333/delerium-server:latest"
 WIPE_DATA="${WIPE_DATA:-0}"
@@ -31,14 +29,34 @@ die()  { echo -e "${RED}[error]${NC}  $*" >&2; exit 1; }
 
 [[ $EUID -eq 0 ]] || die "Run as root:  sudo bash $0"
 
+# ── Interactive configuration (reads from /dev/tty so piped installs work) ─────
 echo ""
-log "=============================================="
-log " Delerium VPS Installer"
-log " Domain : $DOMAIN"
-log " Image  : $IMAGE"
-log " Dir    : $INSTALL_DIR"
-[[ "$WIPE_DATA" == "1" ]] && warn " WIPE_DATA=1 — existing paste data will be deleted!"
-log "=============================================="
+echo -e "${BLUE}[install]${NC} =============================================="
+echo -e "${BLUE}[install]${NC}  Delerium VPS Installer"
+echo -e "${BLUE}[install]${NC} =============================================="
+echo ""
+
+# Allow env-var overrides so non-interactive/CI callers can skip prompts
+if [[ -z "${DOMAIN:-}" ]]; then
+    read -r -p "  Domain name (e.g. paste.example.com): " DOMAIN </dev/tty
+fi
+if [[ -z "${SSL_EMAIL:-}" ]]; then
+    read -r -p "  Email for SSL certificate (Let's Encrypt): " SSL_EMAIL </dev/tty
+fi
+
+[[ -n "$DOMAIN" ]]    || die "DOMAIN is required"
+[[ -n "$SSL_EMAIL" ]] || die "SSL_EMAIL is required"
+
+echo ""
+log "Domain : $DOMAIN"
+log "Email  : $SSL_EMAIL"
+log "Image  : $IMAGE"
+log "Dir    : $INSTALL_DIR"
+[[ "$WIPE_DATA" == "1" ]] && warn "WIPE_DATA=1 — existing paste data will be deleted!"
+echo ""
+read -r -p "  Proceed with installation? [Y/n] " CONFIRM </dev/tty
+CONFIRM="${CONFIRM:-Y}"
+[[ "$CONFIRM" =~ ^[Yy] ]] || { echo "Aborted."; exit 0; }
 echo ""
 
 # ── 1. Clean up existing Delerium installation ─────────────────────────────────
