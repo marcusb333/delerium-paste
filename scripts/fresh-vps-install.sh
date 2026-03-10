@@ -316,7 +316,7 @@ if certbot certonly --webroot \
     SSL_OK=1
 else
     warn "certbot failed — continuing without SSL. Run manually:"
-    warn "  certbot --nginx -d $DOMAIN"
+    warn "  certbot certonly --webroot -w /var/www/certbot -d $DOMAIN --non-interactive --agree-tos --email $SSL_EMAIL"
 fi
 echo ""
 
@@ -338,8 +338,12 @@ server {
 
     ssl_certificate     ${CERT_PATH}/fullchain.pem;
     ssl_certificate_key ${CERT_PATH}/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
 
     # Security headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
