@@ -430,9 +430,16 @@ release-continue:
 	@chmod +x scripts/release.sh
 	./scripts/release.sh --continue
 
-# Apply all Kubernetes manifests via kustomize
+# Apply all Kubernetes manifests via kustomize (secret applied separately since it's gitignored)
 k8s-apply:
 	@echo "☸️  Applying Kubernetes manifests..."
+	@if [ -f k8s/server/secret.yaml ]; then \
+		echo "Applying secret..."; \
+		kubectl apply -f k8s/server/secret.yaml; \
+	else \
+		echo "WARNING: k8s/server/secret.yaml not found. Run 'make k8s-setup' first."; \
+		echo "         Pods will fail to start without the secret."; \
+	fi
 	kubectl apply -k k8s/
 	@echo "✅ Manifests applied. Monitor with: make k8s-status"
 
@@ -448,19 +455,24 @@ k8s-setup:
 	@echo ""
 	@read -p "Enter your domain (e.g. paste.mydomain.com): " DOMAIN; \
 	read -p "Enter your email (for Let's Encrypt): " EMAIL; \
+	read -p "Enter DB JDBC URL [jdbc:sqlite:/data/pastes.db]: " DB_PATH_INPUT; \
+	DB_PATH=$${DB_PATH_INPUT:-jdbc:sqlite:/data/pastes.db}; \
 	PEPPER=$$(openssl rand -hex 32); \
 	echo ""; \
 	echo "Configuring domain: $$DOMAIN"; \
-	sed -i'' -e "s/paste\.example\.com/$$DOMAIN/g" k8s/ingress.yaml; \
+	sed -i'' -e "s/test\.delerium\.cc/$$DOMAIN/g" k8s/ingress.yaml; \
 	echo "Configuring email: $$EMAIL"; \
 	sed -i'' -e "s/REPLACE_WITH_YOUR_EMAIL/$$EMAIL/g" k8s/cert-manager/cluster-issuer.yaml; \
-	echo "Generating deletion token pepper..."; \
+	echo "Generating secret..."; \
+	cp k8s/server/secret.yaml.template k8s/server/secret.yaml; \
 	sed -i'' -e "s/REPLACE_WITH_OUTPUT_OF__openssl_rand_-hex_32/$$PEPPER/g" k8s/server/secret.yaml; \
+	sed -i'' -e "s|REPLACE_WITH_DB_PATH|$$DB_PATH|g" k8s/server/secret.yaml; \
 	echo ""; \
 	echo "--- Setup complete ---"; \
-	echo "  Domain : $$DOMAIN  (k8s/ingress.yaml)"; \
-	echo "  Email  : $$EMAIL  (k8s/cert-manager/cluster-issuer.yaml)"; \
-	echo "  Pepper : (generated, 64-char hex in k8s/server/secret.yaml)"; \
+	echo "  Domain  : $$DOMAIN  (k8s/ingress.yaml)"; \
+	echo "  Email   : $$EMAIL  (k8s/cert-manager/cluster-issuer.yaml)"; \
+	echo "  DB path : $$DB_PATH  (k8s/server/secret.yaml)"; \
+	echo "  Pepper  : (generated, 64-char hex in k8s/server/secret.yaml)"; \
 	echo ""; \
 	echo "Next steps:"; \
 	echo "  1. make k8s-install-cert-manager   # if using TLS"; \
@@ -531,9 +543,6 @@ k8s-local: k8s-install-ingress k8s-apply
 	@echo "============================================"
 	@echo "✅ Local Kubernetes stack is ready!"
 	@echo "============================================"
-	@echo ""
-	@echo "NodePort access (works now):"
-	@echo "  http://localhost:30080"
 	@echo ""
 	@echo "Ingress access (requires /etc/hosts entry):"
 	@echo "  1. Add this line to /etc/hosts:"
