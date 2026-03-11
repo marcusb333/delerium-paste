@@ -1,456 +1,265 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
-## Project Overview
+## Project
 
-**Delirium** is a zero-knowledge encrypted paste system where all encryption happens client-side. The server NEVER sees plaintext content or encryption keys. This is a security-first application with TypeScript frontend and Kotlin backend.
-
-## Core Architecture Principle: Zero-Knowledge
-
-- ALL encryption/decryption occurs in the browser using Web Crypto API (AES-256-GCM)
-- Encryption keys are stored in URL fragments (after `#`) which browsers never send to servers
-- Server only stores encrypted ciphertext + IV + metadata
-- Keys are derived from passwords using PBKDF2 (100,000 iterations)
-- Privacy-first: no accounts, no tracking, no analytics
+**Delirium** — zero-knowledge encrypted paste system. Server NEVER sees plaintext or keys. TypeScript frontend + Kotlin backend.
 
 ```
-User Input → PBKDF2 → AES-256 Key → Encrypt → Upload (without key!)
-Share URL: domain.com/view?p=ID#salt:iv  (key stays client-side)
+User Input → PBKDF2 → AES-256 Key → Encrypt → Upload (key stays in URL fragment!)
+Share URL: domain.com/view?p=ID#salt:iv
 ```
 
-## Technology Stack
+- All encrypt/decrypt in browser via Web Crypto API (AES-256-GCM); keys derived via PBKDF2 (100k iterations)
+- Keys in URL `#fragment` — browsers never send fragments to servers
+- No accounts, tracking, or analytics
 
-**Frontend (client/):** TypeScript (strict mode, ES Modules), Web Crypto API, vendored `marked.js` + `highlight.js` (no CDN), Jest + Playwright, ESLint, 85% min coverage
-
-**Backend (server/):** Kotlin + Ktor, SQLite + Exposed, Bazel build, JDK 21+ (Eclipse Temurin 25 JRE)
-
-**Infrastructure:** Docker + Docker Compose, Nginx reverse proxy, multi-arch (AMD64, ARM64, ARM/v7)
+**Stack:** TS (strict, ES Modules), Web Crypto API, vendored marked.js + highlight.js (no CDN), Jest + Playwright, 85% min coverage | Kotlin + Ktor, SQLite + Exposed, Bazel, JDK 21+ | Docker + Nginx, multi-arch
 
 ---
 
-## CRITICAL: Never Push Directly to Main
+## CRITICAL: Never Push to Main
 
-**NEVER push to `main` or `master` — not commits, not tags, not anything.** Always work on a feature branch and open a Pull Request.
+**NEVER** push commits or tags to `main`/`master` directly. Always branch + PR.
 
 ```
-❌ BAD:  git push origin main
-❌ BAD:  git push origin master
-❌ BAD:  git push origin v1.x.x          ← tags must ONLY be pushed after PR is merged
-✅ GOOD: git checkout -b my-feature
-✅ GOOD: git push -u origin my-feature
-✅ GOOD: gh pr create ...
-✅ GOOD: git tag vX.Y.Z && git push origin vX.Y.Z   ← ONLY after PR is merged to main
+❌ git push origin main / master / v1.x.x
+✅ git checkout -b my-feature && git push -u origin my-feature && gh pr create
 ```
 
-**Mandatory workflow for every change:**
-1. Check current branch: `git branch --show-current`
-2. **If on `main` or `master`, create a feature branch IMMEDIATELY:** `git checkout -b <description>`
-3. Make ALL changes on the feature branch (including version bumps, config changes)
-4. Push only to the feature branch
-5. Open a PR via `gh pr create` — never merge directly
-6. After PR is merged: create and push the git tag, then push to Docker Hub, then create GitHub release
+**Every change workflow:**
+1. `git branch --show-current` — if on `main`, branch immediately
+2. All changes (including version bumps) go on the feature branch
+3. `gh pr create` — never merge directly
+4. Tags only after PR merges to main
 
-AI assistants MUST create a branch before any implementation work — including trivial one-line changes. Tags must never be pushed before the corresponding commit lands in main via a merged PR.
+AI assistants MUST branch before any work, including trivial changes.
 
 ---
 
 ## High-Risk Change Protocol
 
-### Privacy is Non-Negotiable
+Single mistakes in a zero-knowledge system permanently destroy trust. Apply this protocol to all changes in:
 
-In a zero-knowledge system, a single mistake can permanently destroy user trust. Extraordinary care is required for changes to:
+- **Privacy-critical**: crypto, key gen/derivation/storage, password handling, URL fragments, chat encryption, delete auth
+- **Anonymity-critical**: logging, network requests, session management, error messages
+- **Data integrity**: DB schema, backup/restore, expiration, single-view consumption
 
-- **Privacy-critical**: encryption/decryption, key generation/derivation/storage, password handling, data transmission, URL fragment handling, chat encryption, delete authorization
-- **Anonymity-critical**: logging, network requests, session management, error messages that could expose internal state
-- **Data integrity**: database schema, backup/restore, expiration logic, single-view consumption
+**Requirements:**
+1. PR description must include: what's changing, what could leak, backward-compat plan, rollback plan
+2. Document all relevant edge cases
+3. 100% test coverage for changed security-critical code
+4. Pass `docs/security/CHECKLIST.md` before submitting
 
-### Requirements for High-Risk Changes
-
-1. **Risk assessment** in PR description: what system is changing, what could go wrong, what data could leak, backward compatibility plan, rollback plan
-2. **Edge case identification**: document all edge cases relevant to the change (encryption, auth, data handling, browser compat, timing, concurrency, URL/fragment handling, etc.)
-3. **100% test coverage** for all changed security-critical code — security paths, edge cases, and failure modes
-4. **Security review checklist** before submitting (see Security Requirements section below)
-
-### When to Apply
-
-**ALWAYS** for: `client/src/core/crypto/`, `client/src/security.ts`, `client/src/core/utils/sanitize.ts`, password/auth changes, key derivation, network requests, delete auth, DB schema changes.
-
-**MAY skip** for: UI-only changes (CSS, layout), documentation, build scripts, non-security config.
-
-When in doubt, apply the protocol. See `docs/security/CHECKLIST.md` for details.
+**Always applies to:** `client/src/core/crypto/`, `client/src/security.ts`, `client/src/core/utils/sanitize.ts`, password/auth changes, key derivation, network requests, DB schema.
+**May skip:** CSS/layout, docs, build scripts, non-security config. When in doubt, apply it.
 
 ---
 
-## Common Development Commands
+## Commands
 
-### Building & Running
 ```bash
-make quick-start              # First time setup
-make dev                      # Development mode (hot-reload)
-make dev-watch                # Development with Docker watch (recommended, requires Docker Compose 2.22+)
-make build-client             # Compile TypeScript
-make start                    # Build client + start Docker services
-make stop / make logs         # Stop containers / follow logs
+# Build & run
+make quick-start              # First-time setup
+make dev                      # Hot-reload dev
+make dev-watch                # Docker watch (requires Compose 2.22+)
+make build-client             # Compile TS
+make start / stop / logs      # Docker services
+
+# Test
+make test                     # All client tests
+cd client && npm run test:unit / test:integration / test:e2e / test:coverage / test:watch
+
+# Server
+make build-server-bazel / test-server-bazel
+
+# Pre-PR
+make ci-check                 # Full CI (run before every PR)
+make ci-quick                 # Lint + typecheck + tests
+
+# Other
+cd client && npm run typecheck / lint / lint:fix
+make clean
 ```
 
-### Testing
-```bash
-make test                     # Run all client tests
-cd client && npm run test:unit           # Unit tests only
-cd client && npm run test:integration    # Integration tests only
-cd client && npm run test:e2e            # Playwright e2e tests
-cd client && npm run test:e2e:ui         # Playwright UI mode
-cd client && npm run test:coverage       # With coverage report
-cd client && npm run test:watch          # Watch mode for TDD
-cd client && npm run test:all            # All test types sequentially
-```
+---
 
-### Server
-```bash
-make build-server-bazel       # Build server with Bazel
-make test-server-bazel        # Run server tests
-```
+## Directory Structure
 
-### Pre-PR Verification
-```bash
-make ci-check                 # Full CI verification (parallel) — run before every PR
-make ci-quick                 # Quick checks (lint, type, tests)
-```
-
-### Other
-```bash
-cd client && npm run typecheck           # Type check only
-cd client && npm run lint                # Lint / npm run lint:fix
-make clean                               # Remove containers, volumes, artifacts
-```
-
-## Directory Structure & Key Files
-
-### Client Architecture
-
-The client follows a layered architecture. **Always read `.ts` source files in `client/src/`, NOT compiled `.js` files.**
+**Always read `.ts` source files in `client/src/`, never compiled `.js`.**
 
 ```
-client/
-├── src/
-│   ├── app.ts                       # Main entry point (index.html)
-│   ├── delete.ts                    # Delete page entry point (delete.html)
-│   ├── security.ts                  # Core crypto: encryptWithPassword, decryptWithPassword,
-│   │                                #   deriveDeleteAuth, deriveKeyFromPassword, secureClear
-│   ├── application/                 # Application layer — use cases and DTOs
-│   │   ├── dtos/paste-dtos.ts
-│   │   └── use-cases/
-│   │       ├── create-paste-use-case.ts  # validate → encrypt → PoW → submit → URL
-│   │       ├── view-paste-use-case.ts    # fetch → decrypt → display
-│   │       ├── delete-paste-use-case.ts  # Token-based and password-based deletion
-│   │       └── chat-use-case.ts          # Send/receive encrypted chat messages
-│   ├── core/                        # Domain layer (framework-agnostic)
-│   │   ├── crypto/                  # interfaces.ts, aes-gcm.ts, encoding.ts
-│   │   ├── models/                  # result.ts (Result<T,E>), paste.ts
-│   │   ├── services/
-│   │   │   ├── encryption-service.ts # encryptPaste, decryptPaste, encryptChatMessage, deriveDeleteAuth
-│   │   │   └── paste-service.ts      # validate, buildShareUrl, parseViewUrl, calculateExpiration
-│   │   ├── utils/sanitize.ts        # sanitizeHtml() — REQUIRED before any innerHTML assignment
-│   │   └── validators/index.ts      # validateContentSize, validateExpiration, validatePassword
-│   ├── features/                    # Legacy feature orchestration (thin wrappers)
-│   ├── infrastructure/              # API client (http-client.ts, mock-client.ts), PoW solver
-│   ├── presentation/components/     # paste-creator-view, paste-viewer-view, chat-view, password-modal
-│   ├── ui/                          # dom-helpers.ts, ui-manager.ts
-│   ├── utils/                       # storage.ts, passive-events.ts
-│   └── types/vendor.d.ts
-├── vendor/                          # marked.min.js, highlight.min.js (vendored, no CDN)
-├── styles/                          # design-system.css, components.css, pages.css, chat.css, etc.
-├── index.html / view.html / delete.html
-├── tests/
-│   ├── unit/                        # *.test.ts (crypto, models, validators, features, etc.)
-│   ├── integration/                 # chat-api.test.ts
-│   ├── load/                        # pow-load.test.ts
-│   └── e2e/                         # Playwright *.spec.ts
-└── package.json
+client/src/
+  app.ts / delete.ts               # Entry points
+  security.ts                      # encryptWithPassword, decryptWithPassword, deriveDeleteAuth, secureClear
+  application/use-cases/           # create-paste, view-paste, delete-paste, chat
+  core/
+    crypto/                        # interfaces, aes-gcm, encoding
+    services/                      # encryption-service, paste-service
+    utils/sanitize.ts              # sanitizeHtml(), escapeText() — REQUIRED before innerHTML
+    validators/index.ts            # validateContentSize, validateExpiration, validatePassword
+  infrastructure/api/              # IApiClient, HttpApiClient, MockApiClient; PoW solver
+  presentation/components/         # paste-creator-view, paste-viewer-view, chat-view, password-modal
+  ui/                              # dom-helpers, ui-manager
+  utils/                           # storage, passive-events
+
+server/src/main/kotlin/
+  App.kt / Routes.kt / Storage.kt / DataKeyManager.kt / Pow.kt / RateLimiter.kt / Models.kt / Utils.kt
+
+client/vendor/     # marked.min.js, highlight.min.js (never CDN)
+docs/              # security/CHECKLIST.md, architecture/C4-DIAGRAMS.md, etc.
 ```
 
-### Server Architecture
-```
-server/
-├── src/main/kotlin/
-│   ├── App.kt               # Application setup, DI, config loading
-│   ├── Routes.kt            # All API endpoints
-│   ├── Storage.kt            # SQLite schema, PasteRepo, chat message repo
-│   ├── DataKeyManager.kt    # Server-side AES-256-GCM key rotation for deleteAuth hashes
-│   ├── Pow.kt               # PoW challenge generation/verification
-│   ├── RateLimiter.kt       # Token bucket rate limiter (per-IP)
-│   ├── Models.kt            # Request/response DTOs
-│   └── Utils.kt             # Ids.randomId(), base64UrlSize()
-├── BUILD.bazel / Dockerfile
-└── src/test/kotlin/
-```
-
-### Key Reference Files
-- `docs/security/CHECKLIST.md` — Security audit checklist
-- `docs/architecture/C4-DIAGRAMS.md` — Architecture diagrams
-- `client/tests/README.md` — Testing standards
-- `Makefile` — All available commands
+---
 
 ## Critical Code Flows
 
-### Paste Creation (`CreatePasteUseCase.execute()`)
+**Create:** validate → `EncryptionService.encryptPaste()` (PBKDF2→AES-GCM) → `deriveDeleteAuth()` (salt+":delete") → PoW → `POST /api/pastes` → share URL `?p=ID#salt:iv` → store delete token in `sessionStorage`
 
-1. User enters content + settings in `index.html`
-2. `PasteService.validatePasteCreation()` validates size, expiration, password, UTF-8
-3. `EncryptionService.encryptPaste()` → PBKDF2 → AES-256-GCM
-4. `EncryptionService.deriveDeleteAuth()` (separate PBKDF2 with `salt + ":delete"`)
-5. Get PoW challenge → solve → `POST /api/pastes` with `{ct, iv, meta, pow, deleteAuth}`
-6. Build share URL: `domain.com/view.html?p=ID#salt:iv` (key only in fragment!)
-7. Build delete URL, store delete token in `sessionStorage`
+**View:** parse `?p=` + `#salt:iv` → password prompt → `GET /api/pastes/{id}` → decrypt → `marked.parse()` → `sanitizeHtml()` → `innerHTML` → start 30s chat poll
 
-### Paste Viewing (`ViewPasteUseCase`)
+**Delete:** token → `DELETE /api/pastes/{id}?token=` | password → `POST /api/pastes/{id}/delete` with `{deleteAuth}` (brute-force: 10 fails/5min blocks)
 
-1. Parse URL: paste ID from `?p=`, salt:iv from `#` fragment
-2. Prompt for password → `GET /api/pastes/{ID}` → decrypt with AES-256-GCM
-3. Display: if markdown, render via `marked.parse()` → `sanitizeHtml()` → `innerHTML`
-4. Chat auto-initializes with 30-second polling
+**Chat:** encrypt/decrypt with paste password+salt; JSON `{text,username}`; 50-msg FIFO; rate-limited per IP
 
-### Paste Deletion (Two Methods)
+**Anti-spam:** SHA-256 PoW (10-bit), 30 req/min rate limit, 8MB paste / 10KB message limits, hourly expiry cleanup
 
-1. **Creator token**: `DELETE /api/pastes/{id}?token=...` — token hashed with SHA-256 + pepper
-2. **Password-based**: `POST /api/pastes/{id}/delete` with `{deleteAuth}` — brute-force protected (10 failures / 5 min blocks paste ID). CASCADE deletes chat messages.
+---
 
-### Anonymous Chat
+## Code Style
 
-- Messages encrypted/decrypted with paste password + salt
-- New format: JSON `{text, username}` (backward-compatible with old plain-text format)
-- Server enforces 50-message FIFO limit, rate-limits per IP
+**TypeScript:** strict, 2-space indent, camelCase vars/fns, UpperCamelCase classes, kebab-case files, explicit types (no `any`), JSDoc for public APIs
 
-### Anti-Spam
+**Kotlin:** 4-space indent, data classes for DTOs, suspend for async, prefer immutable
 
-- **PoW**: SHA-256 puzzle (10-bit difficulty), **Rate Limiting**: 30 req/min per IP
-- **Size Limits**: 8MB paste, 10KB message, **Brute-force**: 10 failures / 5 min blocks paste ID
-- **Expiration**: Hourly cleanup
+**HTML:** unique IDs per page (use page prefix), semantic elements, ARIA attributes, all inputs labelled
 
-## Code Style & Conventions
+**XSS safety:** NEVER assign `innerHTML` without `sanitizeHtml()` first. Use `escapeText()` for plain text interpolated into HTML strings.
 
-### TypeScript
-- Strict mode, 2-space indent, camelCase vars/functions, UpperCamelCase classes, kebab-case files
-- Explicit types (no `any`), export for testing, JSDoc for public APIs
+**Files:** `.ts` sources only; change docs in `docs/prs/<description>/`; vendored libs in `client/vendor/`
 
-### Kotlin
-- JetBrains defaults (4-space indent), data classes for DTOs, suspend for async, immutable preferred
+---
 
-### HTML
-- Unique IDs across all HTML files (use page-specific prefixes)
-- Semantic elements with ARIA attributes, all inputs need labels
+## Testing
 
-### XSS / innerHTML Safety
-- **NEVER** assign `innerHTML` directly from user content or markdown output
-- **ALWAYS** use `sanitizeHtml()` from `client/src/core/utils/sanitize.ts` first
-
-### File Organization
-- Read `.ts` source files, not compiled `.js`
-- Change docs go in `docs/prs/<description>/`
-- Vendored libraries in `client/vendor/`, never CDN
-
-## Testing Requirements
-
-- **85% minimum overall coverage** for CI to pass
-- **100% coverage** for security-critical code (crypto, security.ts, sanitize.ts, validators)
-- **Coverage drops >5%** not acceptable without justification
-- **Every PR must include tests** for all new code — no exceptions
-- Tests must: have clear names, use Arrange-Act-Assert, cover all paths (happy, edge, error, security), be independent (no shared state), test behavior not implementation
+- **85% overall minimum** (CI enforced); **100% for security-critical** (crypto, security.ts, sanitize.ts, validators)
+- Coverage drops >5% require justification; every PR must add tests for new code
+- Tests: clear names, Arrange-Act-Assert, cover happy/edge/error/security paths, independent (no shared state), test behavior not implementation
 - Run `make ci-check` before every PR
 
-## Security Requirements (Non-Negotiable)
+---
 
-### Before Every Commit
-- No hardcoded secrets, keys, or passwords in code
-- No sensitive data in logs (keys, plaintext, tokens) — OK to log: request IDs, timestamps, paste IDs, status codes
-- Client-side encryption verified (keys never sent to server)
-- Input validation on server; error messages don't leak internals
-- 100% test coverage for security-critical paths
-- No XSS, SQL injection, or OWASP top 10; all `innerHTML` uses `sanitizeHtml()`
+## Security (Non-Negotiable)
 
-### Cryptographic Standards
-- Web Crypto API only (no custom crypto)
-- AES-256-GCM with `crypto.getRandomValues` for IV generation
-- PBKDF2 with 100,000+ iterations, 16+ byte salt
-- Keys derived independently (encryption vs delete auth)
-- IVs never reused with same key
+**Every commit:** no hardcoded secrets; no sensitive data in logs (OK: request IDs, timestamps, paste IDs, status codes); keys never sent to server; server-side input validation; error messages don't leak internals; 100% coverage on security paths; no OWASP top 10 issues; `sanitizeHtml()` on all `innerHTML`
 
-### Privacy Standards
-- URL fragments for all key material
-- No analytics, tracking, or external resources (CDNs, fonts)
-- Server never sees plaintext or keys
-- `sanitizeHtml()` before any `innerHTML` assignment
+**Crypto:** Web Crypto API only (no custom crypto); AES-256-GCM + `crypto.getRandomValues` for IVs; PBKDF2 100k+ iterations, 16+ byte salt; independent key derivation for encryption vs delete auth; IVs never reused
 
-## API Contract & Backward Compatibility
+**Privacy:** URL fragments for all key material; no CDNs, analytics, or external resources; server never sees plaintext or keys
 
-**NEVER break existing API contracts.** When tests fail: investigate how the API is actually used in production, fix the test/consumer — don't change the API.
+---
 
-Before changing any public API: search all usages, check production code, verify return types, read design docs, consider if tests are wrong.
+## API Contract
 
-### Key Contracts
-
-**`encryptWithPassword`** returns `ArrayBuffer`s, not strings. `EncryptionService` converts to base64url.
-
-**`Result<T,E>`** — use `success()`, `failure()`, `isFailure()` from `core/models/result.ts`.
-
-## API Endpoints
+**NEVER break existing API contracts.** When tests fail, investigate production usage and fix the consumer — don't change the API.
 
 ```
-GET    /api/health              # Health check
-GET    /api/pow                 # Get PoW challenge (204 if disabled)
-POST   /api/pastes              # Create paste (requires PoW)
-GET    /api/pastes/:id          # Retrieve paste
-DELETE /api/pastes/:id          # Delete by token (creator only)
-POST   /api/pastes/:id/delete   # Delete by password-derived auth
-POST   /api/pastes/:id/messages # Post encrypted chat message
-GET    /api/pastes/:id/messages # Get all encrypted chat messages
+GET    /api/health
+GET    /api/pow                          # 204 if disabled
+POST   /api/pastes                       # {ct,iv,meta:{expireTs,mime,allowChat},pow,deleteAuth} → 201 {id,deleteToken}
+GET    /api/pastes/:id                   # → {ct,iv,meta}
+DELETE /api/pastes/:id?token=            # creator token delete
+POST   /api/pastes/:id/delete            # {deleteAuth} — password-based delete
+POST   /api/pastes/:id/messages          # {ct,iv}
+GET    /api/pastes/:id/messages          # → {messages:[{ct,iv,timestamp}]}
 ```
 
-### Request/Response Formats
+**Key contracts:** `encryptWithPassword` returns `ArrayBuffer`s (not strings); use `Result<T,E>` with `success()`, `failure()`, `isFailure()` from `core/models/result.ts`
 
-**POST /api/pastes** → `{ct, iv, meta: {expireTs, mime, allowChat}, pow: {challenge, nonce}, deleteAuth}` → **201** `{id, deleteToken}`
-
-**POST /api/pastes/:id/delete** → `{deleteAuth}`
-
-**POST /api/pastes/:id/messages** → `{ct, iv}` | **GET** → `{messages: [{ct, iv, timestamp}]}`
+---
 
 ## Version Bumping
 
-Always use `make version-bump VERSION=x.y.z` (which calls `scripts/bump-version.sh`) to update the version. **Never edit version strings manually.**
+Always: `make version-bump VERSION=x.y.z` — never edit version strings manually.
 
-The bump script updates: `client/package.json`, `MODULE.bazel`, `client/index.html`, `client/view.html`, `client/delete.html`, `client/tests/e2e/delete-paste.spec.ts`, `server/docs/API.md`.
+Updates: `client/package.json`, `MODULE.bazel`, HTML files, `client/tests/e2e/delete-paste.spec.ts`, `server/docs/API.md`
 
-After running the script, also manually update image tags in:
-- `docker-compose.yml`
-- `docker-compose.prod.yml`
-- `k8s/server/deployment.yaml`
+Then manually update image tags in `docker-compose.yml`, `docker-compose.prod.yml`, `k8s/server/deployment.yaml`, and regenerate lock: `npm --prefix client install --package-lock-only`
 
-And regenerate the lock: `npm --prefix client install --package-lock-only`
+Out-of-sync HTML: `./scripts/bump-version.sh x.y.z --force`
 
-### Out-of-sync files
-
-If the HTML files are at a different version than `package.json` (e.g. after a bad bump), use `--force` mode which replaces any semver pattern rather than exact-matching the current version:
-
-```bash
-make version-bump VERSION=x.y.z  # may miss out-of-sync HTML
-./scripts/bump-version.sh x.y.z --force  # fixes all files regardless of current version
-```
-
-**Always verify the UI shows the correct version** by checking the `version-display` anchors in `client/index.html`, `view.html`, and `delete.html` after any bump.
+Verify `version-display` anchors in `index.html`, `view.html`, `delete.html` after any bump.
 
 ---
 
-## Git Workflow & Commits
+## Git & Commits
 
-### Branches
-- `main` — Production. **NEVER push directly.**
-- Feature branches for PRs (any descriptive name). AI branches: `claude/<description>-<sessionId>`
-
-### Commit Messages
-Format: `<type>: <description>` — Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `perf`, `style`
-
-Commit messages must align with branch purpose. All CI checks must pass (lint, typecheck, tests, 85% coverage).
-
-## Dependency Management Rules
-
-### Never Use Deprecated or Legacy Fallbacks
-
-**NEVER** run `npm install --legacy-peer-deps` or `npm install --force` without first diagnosing the actual conflict. These flags suppress errors rather than fix them and can mask real incompatibilities.
-
-**Required process before any `npm install`:**
-
-1. **Run plain `npm install` first** — read the error output fully before reaching for flags.
-2. **Diagnose the conflict**: `npm explain <package>` or `npm ls <package>` to understand what's mismatched.
-3. **Fix the root cause** — one of:
-   - Update the conflicting dependency to a compatible version
-   - Add a `overrides` or `peerDependenciesMeta` entry in `package.json`
-   - Use `npm install --save-exact <pkg>@<version>` to pin a specific compatible version
-4. **Only use `--legacy-peer-deps` as a last resort** with an explicit comment in the PR explaining why it was unavoidable.
-
-### Check for Deprecated Packages Before Adding
-
-Before adding any new dependency:
-```bash
-npm info <package> deprecated   # check if package is deprecated
-npm outdated                     # check for stale deps in the project
-```
-
-If a package is deprecated, find its recommended replacement. Never add a package that npm itself warns is deprecated.
-
-### Prefer Exact Resolutions Over Workarounds
-
-When a peer conflict arises, prefer adding an `overrides` block in `package.json` to lock a shared dependency to a compatible version:
-
-```json
-"overrides": {
-  "some-transitive-dep": "^3.0.0"
-}
-```
-
-This is explicit, reviewable, and doesn't suppress all future conflict detection.
+- `main` — production, never push directly. AI branches: `claude/<description>-<sessionId>`
+- Commit format: `<type>: <description>` — types: `feat fix docs test refactor chore perf style`
+- All CI checks must pass before merging (lint, typecheck, tests, 85% coverage)
 
 ---
 
-## AI Collaboration Rules
+## Dependency Management
 
-### Command Approvals
+**NEVER** run `npm install --legacy-peer-deps` or `--force` without diagnosing the conflict first.
 
-When the user approves a tool call that required confirmation, immediately persist it by adding the pattern to `allowedTools` in `.claude/settings.json` (project-level). For commands that should apply across all projects, add to `~/.claude/settings.json` instead. Use glob patterns where appropriate (e.g. `"Bash(git *)"` for all git commands, `"Bash(make *)"` for all make commands). Do this before continuing with the original task.
+**Process:**
+1. Run plain `npm install` and read the full error
+2. Diagnose: `npm explain <package>` or `npm ls <package>`
+3. Fix root cause: update the dep, add `overrides` in `package.json`, or pin with `--save-exact`
+4. `--legacy-peer-deps` only as documented last resort with PR explanation
 
-### Pull Requests
-- **Small PRs** (100-300 lines), one concern per PR, atomic and independently deployable
-- **Logical, atomic commits** — each independently understandable
-- **Use `gh` CLI** for all GitHub operations (not GitKraken)
-- **No AI attribution** in PRs, commits, or docs
-- **Push after each commit** to the feature branch
+Before adding any dependency: `npm info <package> deprecated` — never add a deprecated package.
 
-### PR Description Template
+Prefer `"overrides": { "pkg": "^x.y.z" }` in `package.json` over suppression flags.
+
+---
+
+## AI Collaboration
+
+**Command approvals:** When a tool call is approved, persist it to `allowedTools` in `.claude/settings.json` (project) or `~/.claude/settings.json` (global). Use glob patterns: `"Bash(git *)"`, `"Bash(make *)"`.
+
+**PRs:** small (100–300 lines), one concern, atomic commits, `gh` CLI only, no AI attribution, push after each commit
+
+**PR description template:**
 ```
 ## Summary
-[1-3 sentences: what and why]
+[1–3 sentences: what and why]
 
 ## Changes
-- [Bulleted list, grouped by area if multi-area]
+- [Grouped bullets by area]
 
 ## Test plan
-- [ ] [Verification steps]
+- [ ] [Steps]
 ```
 
-Never leave the description blank. Always include a test plan.
+---
 
 ## Deployment
 
 ```bash
-docker-compose up -d                                              # Dev (port 8080)
-docker-compose -f docker-compose.prod.yml up -d                   # Prod (80/443)
-docker-compose -f docker-compose.prod.yml -f docker-compose.secure.yml up -d  # HTTPS
-make deploy-prod                                                  # VPS with SSL
-make build-multiarch / make push-multiarch REGISTRY=... TAG=...   # Multi-arch
+docker-compose up -d                                                              # Dev (8080)
+docker-compose -f docker-compose.prod.yml up -d                                   # Prod (80/443)
+docker-compose -f docker-compose.prod.yml -f docker-compose.secure.yml up -d      # HTTPS
+make deploy-prod                                                                   # VPS + SSL
+make build-multiarch / push-multiarch REGISTRY=... TAG=...
 ```
 
-## Important Patterns & Decisions
+---
 
-- **Fragment-based key storage**: URL fragment (`#salt:iv`) never sent to server
-- **Password key derivation**: PBKDF2 100k iterations, SHA-256, 16-byte salt — single password unlocks paste + chat
-- **PoW**: Client-side SHA-256 puzzle, yields every 1000 iterations for UI responsiveness
-- **Rate limiting**: Token bucket, 30/min per IP, separate buckets for pastes and messages
-- **Delete token security**: SHA-256 + secret pepper before storage
-- **Password-based deletion**: PBKDF2 with modified salt (`salt + ":delete"`), brute-force protected
-- **Server-side key rotation** (`DataKeyManager`): AES-256-GCM keyring for deleteAuth hashes (defense-in-depth)
-- **Delete token storage**: `sessionStorage` (expires with tab), legacy `localStorage` tokens migrated
-- **Vendored libs**: `marked.js` + `highlight.js` in `client/vendor/` (no CDN)
-- **Markdown safety**: `marked.parse()` → `sanitizeHtml()` → `innerHTML`
-- **Paste lifecycle**: expires (hourly cleanup), creator token delete, or password delete — all cascade-delete chat
+## Key Design Decisions
 
-## Documentation
+- Fragment-based keys (`#salt:iv`) never reach the server
+- Single password unlocks paste + chat (PBKDF2 100k, SHA-256, 16-byte salt)
+- PoW: client-side SHA-256, yields every 1000 iterations for UI responsiveness
+- Rate limiting: token bucket 30/min per IP, separate buckets for pastes/messages
+- Delete tokens: SHA-256 + pepper; password deletion uses `salt+":delete"` PBKDF2 variant
+- `DataKeyManager`: AES-256-GCM keyring rotates deleteAuth hashes (defense-in-depth)
+- Delete tokens in `sessionStorage` (tab-scoped); legacy `localStorage` tokens auto-migrated
+- Paste lifecycle: expiry (hourly) | creator token delete | password delete — all cascade to chat
 
-- **Setup**: `docs/getting-started/SETUP.md`
-- **Deployment**: `docs/deployment/DEPLOYMENT.md`
-- **Architecture**: `docs/architecture/C4-DIAGRAMS.md`
-- **PoW**: `docs/architecture/PROOF_OF_WORK.md`
-- **Testing**: `client/tests/README.md`
-- **Security**: `docs/security/CHECKLIST.md`
-- **Chat**: `docs/features/ANONYMOUS-CHAT.md`
-- **Bazel**: `docs/development/BAZEL_QUICKSTART.md`
-- Change docs go in `docs/prs/<description>/`
+## Docs
+
+`docs/getting-started/SETUP.md` · `docs/deployment/DEPLOYMENT.md` · `docs/architecture/C4-DIAGRAMS.md` · `docs/architecture/PROOF_OF_WORK.md` · `client/tests/README.md` · `docs/security/CHECKLIST.md` · `docs/features/ANONYMOUS-CHAT.md` · `docs/development/BAZEL_QUICKSTART.md` · Change docs → `docs/prs/<description>/`
