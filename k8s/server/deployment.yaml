@@ -24,7 +24,7 @@ spec:
         fsGroup: 1000       # Ensures /data volume is writable by the delirium user
       containers:
         - name: server
-          image: marcusb333/delerium-server:v1.5.1
+          image: marcusb333/delerium-server:v1.6.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
