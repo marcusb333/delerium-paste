@@ -19,27 +19,23 @@
 set -e
 
 BASE_BRANCH="${1:-main}"
-API_KEY="${2:-${ANTHROPIC_API_KEY}}"
+# Allow key override as second arg for convenience
+if [ -n "${2}" ]; then
+  export ANTHROPIC_API_KEY="${2}"
+fi
 
 TEMPLATE_FILE=".github/pull_request_template.md"
 
 # ── Validation ─────────────────────────────────────────────────────────────
 
-if [ -z "$API_KEY" ]; then
-  echo "Error: ANTHROPIC_API_KEY not set." >&2
-  echo "Pass it as the second argument or export it as an environment variable." >&2
-  exit 1
-fi
-
-if ! command -v jq &>/dev/null; then
-  echo "Error: jq is required. Install with: brew install jq  or  apt install jq" >&2
-  exit 1
-fi
-
 if [ ! -f "$TEMPLATE_FILE" ]; then
   echo "Error: PR template not found at $TEMPLATE_FILE" >&2
   exit 1
 fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/anthropic-api.sh
+source "$SCRIPT_DIR/lib/anthropic-api.sh"
 
 # ── Gather context ──────────────────────────────────────────────────────────
 
@@ -102,30 +98,7 @@ Output the complete template with \`{describe}\` replaced. Output nothing else."
 
 echo "Calling Claude API..." >&2
 
-JSON_PAYLOAD=$(jq -n \
-  --arg content "$PROMPT" \
-  '{
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
-    messages: [{role: "user", content: $content}]
-  }')
-
-RESPONSE=$(curl -sf https://api.anthropic.com/v1/messages \
-  -H "x-api-key: $API_KEY" \
-  -H "anthropic-version: 2023-06-01" \
-  -H "content-type: application/json" \
-  -d "$JSON_PAYLOAD") || {
-  echo "Error: API request failed." >&2
-  exit 1
-}
-
-FILLED=$(echo "$RESPONSE" | jq -r '.content[0].text' 2>/dev/null)
-
-if [ -z "$FILLED" ] || [ "$FILLED" = "null" ]; then
-  echo "Error: unexpected API response:" >&2
-  echo "$RESPONSE" >&2
-  exit 1
-fi
+FILLED=$(call_claude "$PROMPT" "claude-haiku-4-5-20251001" 1024)
 
 echo "Done." >&2
 echo ""

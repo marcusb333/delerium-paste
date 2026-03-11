@@ -70,6 +70,15 @@ export class MockApiClient implements IApiClient {
   }
 
   /**
+   * Delete a paste using password-derived auth (mock: auth is not verified)
+   */
+  async deleteByPassword(id: string, _deleteAuth: string): Promise<void> {
+    const paste = this.pastes.get(id);
+    if (!paste) throw new Error('Paste not found');
+    this.pastes.delete(id);
+  }
+
+  /**
    * Get PoW challenge
    */
   async getPowChallenge(): Promise<PowChallenge | null> {
