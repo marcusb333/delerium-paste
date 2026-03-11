@@ -8,20 +8,18 @@ on:
 jobs:
   build-amd64:
     name: Build AMD64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.extract-tag.outputs.tag }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Extract tag
         id: extract-tag
         run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -52,19 +50,11 @@ jobs:
   build-arm64:
     name: Build ARM64
     runs-on: ubuntu-24.04-arm
-    outputs:
-      tag: ${{ steps.extract-tag.outputs.tag }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Extract tag
-        id: extract-tag
-        run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -87,14 +77,14 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ghcr.io/marcusb333/delerium-paste:${{ steps.extract-tag.outputs.tag }}-arm64
-            marcusb333/delerium-server:${{ steps.extract-tag.outputs.tag }}-arm64
+            ghcr.io/marcusb333/delerium-paste:${{ github.ref_name }}-arm64
+            marcusb333/delerium-server:${{ github.ref_name }}-arm64
           cache-from: type=gha,scope=arm64
           cache-to: type=gha,mode=min,scope=arm64
 
   merge:
     name: Create Multi-Arch Manifest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-amd64, build-arm64]
 
     steps:
@@ -111,8 +101,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
       - name: Create and push GHCR multi-arch manifest
         env:
@@ -136,15 +125,15 @@ jobs:
 
   deploy:
     name: Trigger VPS Deploy
-    runs-on: ubuntu-latest
-    needs: [build-amd64, merge]
+    runs-on: ubuntu-24.04
+    needs: [merge]
 
     steps:
       - name: Call deploy webhook
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-          TAG: ${{ needs.build-amd64.outputs.tag }}
+          TAG: ${{ github.ref_name }}
         run: |
           curl -f -X POST "https://${VPS_HOST}/hooks/deploy" \
             -H "X-Deploy-Token: ${DEPLOY_TOKEN}" \

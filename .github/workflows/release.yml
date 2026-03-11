@@ -1,0 +1,115 @@
+name: Release Validation
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: node-cache
+        with:
+          path: client/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        working-directory: client
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: client
+        run: npx playwright install --with-deps
+
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: client
+        run: npx playwright install-deps
+
+      - name: Run E2E tests
+        working-directory: client
+        run: npx playwright test
+        env:
+          CI: true
+
+  docker-smoke-test:
+    name: Docker Smoke Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Create .env file
+        run: echo "DELETION_TOKEN_PEPPER=ci-pepper-$(date +%s)" > .env
+
+      - name: Generate TLS certificates
+        run: bash scripts/generate-local-certs.sh
+
+      - name: Validate Docker Compose config
+        run: docker compose -f docker-compose.yml config
+
+      - name: Build images
+        run: docker compose -f docker-compose.yml build --parallel
+
+      - name: Start services
+        run: docker compose -f docker-compose.yml up -d
+
+      - name: Health check
+        run: |
+          echo "Waiting for services to become healthy..."
+          for i in $(seq 1 30); do
+            if timeout 5 curl -fsk https://localhost:8443/api/health > /dev/null 2>&1; then
+              echo "Healthy after $((i * 2))s"
+              exit 0
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+          echo "Health check failed after 60s"
+          docker compose -f docker-compose.yml logs
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
+
+  summary:
+    name: Summary
+    runs-on: ubuntu-24.04
+    needs: [e2e, docker-smoke-test]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Smoke Test | ${{ needs.docker-smoke-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.e2e.result }}" != "success" ] || [ "${{ needs.docker-smoke-test.result }}" != "success" ]; then
+            exit 1
+          fi
