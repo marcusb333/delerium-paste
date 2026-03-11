@@ -10,19 +10,3 @@ patches:
   - path: server-pvc-patch.yaml
   # Ingress: use Traefik (k3s default) instead of nginx
   - path: ingress-patch.yaml
-  # Switch web service from NodePort to ClusterIP (JSON patch to fully replace ports)
-  - target:
-      kind: Service
-      name: delerium-web
-      namespace: delerium
-    patch: |
-      - op: replace
-        path: /spec/type
-        value: ClusterIP
-      - op: replace
-        path: /spec/ports
-        value:
-          - name: http
-            port: 80
-            targetPort: 80
-            protocol: TCP
