@@ -352,6 +352,46 @@ Format: `<type>: <description>` — Types: `feat`, `fix`, `docs`, `test`, `refac
 
 Commit messages must align with branch purpose. All CI checks must pass (lint, typecheck, tests, 85% coverage).
 
+## Dependency Management Rules
+
+### Never Use Deprecated or Legacy Fallbacks
+
+**NEVER** run `npm install --legacy-peer-deps` or `npm install --force` without first diagnosing the actual conflict. These flags suppress errors rather than fix them and can mask real incompatibilities.
+
+**Required process before any `npm install`:**
+
+1. **Run plain `npm install` first** — read the error output fully before reaching for flags.
+2. **Diagnose the conflict**: `npm explain <package>` or `npm ls <package>` to understand what's mismatched.
+3. **Fix the root cause** — one of:
+   - Update the conflicting dependency to a compatible version
+   - Add a `overrides` or `peerDependenciesMeta` entry in `package.json`
+   - Use `npm install --save-exact <pkg>@<version>` to pin a specific compatible version
+4. **Only use `--legacy-peer-deps` as a last resort** with an explicit comment in the PR explaining why it was unavoidable.
+
+### Check for Deprecated Packages Before Adding
+
+Before adding any new dependency:
+```bash
+npm info <package> deprecated   # check if package is deprecated
+npm outdated                     # check for stale deps in the project
+```
+
+If a package is deprecated, find its recommended replacement. Never add a package that npm itself warns is deprecated.
+
+### Prefer Exact Resolutions Over Workarounds
+
+When a peer conflict arises, prefer adding an `overrides` block in `package.json` to lock a shared dependency to a compatible version:
+
+```json
+"overrides": {
+  "some-transitive-dep": "^3.0.0"
+}
+```
+
+This is explicit, reviewable, and doesn't suppress all future conflict detection.
+
+---
+
 ## AI Collaboration Rules
 
 ### Command Approvals
