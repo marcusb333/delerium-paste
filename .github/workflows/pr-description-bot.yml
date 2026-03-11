@@ -1,0 +1,36 @@
+name: PR Description Bot
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  generate-description:
+    name: Generate PR Description
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.base_ref }}
+
+      - name: Generate PR description
+        run: |
+          chmod +x scripts/generate-pr-description.sh
+          ./scripts/generate-pr-description.sh "${{ github.base_ref }}" > /tmp/pr-description.md
+          echo "── Generated description ──────────────────────────────"
+          cat /tmp/pr-description.md
+
+      - name: Update PR description
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --body-file /tmp/pr-description.md
