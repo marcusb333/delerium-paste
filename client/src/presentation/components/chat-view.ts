@@ -8,18 +8,7 @@
 import { ChatUseCase } from '../../application/use-cases/chat-use-case.js';
 import { secureClear } from '../../security.js';
 import { showPasswordModal } from './password-modal.js';
-
-/**
- * Escape HTML to prevent XSS attacks
- */
-export function escapeHtml(text: string): string {
-  if (text == null) {
-    return '';
-  }
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+import { escapeText } from '../../core/utils/sanitize.js';
 
 /**
  * Debug flag for verbose error logging
@@ -78,10 +67,10 @@ export class ChatView {
       html += `
         <div class="${messageClass}">
           <div class="chat-message-header">
-            <span class="chat-message-username">${escapeHtml(username)}</span>
-            <span class="chat-message-timestamp">${escapeHtml(timeStr)}</span>
+            <span class="chat-message-username">${escapeText(username)}</span>
+            <span class="chat-message-timestamp">${escapeText(timeStr)}</span>
           </div>
-          <div class="chat-message-content">${escapeHtml(msg.text)}</div>
+          <div class="chat-message-content">${escapeText(msg.text)}</div>
         </div>
       `;
     }
@@ -106,7 +95,7 @@ export class ChatView {
 
     messagesDiv.innerHTML = `
       <div class="chat-error">
-        ⚠️ ${escapeHtml(message)}
+        ⚠️ ${escapeText(message)}
       </div>
     `;
   }

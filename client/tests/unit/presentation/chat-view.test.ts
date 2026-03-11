@@ -3,11 +3,12 @@
  *
  * Covers: auto-load on setup, 30s polling interval, clearInterval on unload,
  *         duplicate-initialization guard, silent polling (no loading text flash),
- *         escapeHtml, displayMessages with messages, handleSendMessage,
+ *         escapeText, displayMessages with messages, handleSendMessage,
  *         keydown Enter handler, missing elements warning.
  */
 
-import { ChatView, escapeHtml, generateRandomUsername } from '../../../src/presentation/components/chat-view.js';
+import { ChatView, generateRandomUsername } from '../../../src/presentation/components/chat-view.js';
+import { escapeText } from '../../../src/core/utils/sanitize.js';
 import { ChatUseCase } from '../../../src/application/use-cases/chat-use-case.js';
 import * as passwordModal from '../../../src/presentation/components/password-modal.js';
 
@@ -51,23 +52,22 @@ function makeMockUseCase(): jest.Mocked<ChatUseCase> {
 }
 
 // ============================================================================
-// escapeHtml
+// escapeText (moved to sanitize.ts — re-tested here for chat-view coverage)
 // ============================================================================
 
-describe('escapeHtml', () => {
+describe('escapeText', () => {
   it('should return empty string for null-ish values', () => {
-    // The function checks `text == null` which catches both null and undefined
-    expect(escapeHtml(null as unknown as string)).toBe('');
-    expect(escapeHtml(undefined as unknown as string)).toBe('');
+    expect(escapeText(null as unknown as string)).toBe('');
+    expect(escapeText(undefined as unknown as string)).toBe('');
   });
 
   it('should escape HTML special characters', () => {
-    expect(escapeHtml('<script>')).toContain('&lt;');
-    expect(escapeHtml('<script>')).toContain('&gt;');
+    expect(escapeText('<script>')).toContain('&lt;');
+    expect(escapeText('<script>')).toContain('&gt;');
   });
 
   it('should return plain text unchanged', () => {
-    expect(escapeHtml('hello world')).toBe('hello world');
+    expect(escapeText('hello world')).toBe('hello world');
   });
 });
 

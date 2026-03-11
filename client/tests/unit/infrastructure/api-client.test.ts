@@ -236,6 +236,72 @@ describe('HttpApiClient', () => {
     });
   });
 
+  describe('deleteByPassword', () => {
+    it('should resolve on HTTP 204', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 204 });
+
+      await expect(client.deleteByPassword('abc123', 'derived-auth')).resolves.not.toThrow();
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/pastes/abc123/delete',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deleteAuth: 'derived-auth' }),
+        })
+      );
+    });
+
+    it('should resolve on HTTP 200', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200 });
+      await expect(client.deleteByPassword('abc', 'auth')).resolves.not.toThrow();
+    });
+
+    it('should throw with specific message for invalid_auth', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: jest.fn().mockResolvedValue({ error: 'invalid_auth' }),
+      });
+      await expect(client.deleteByPassword('abc', 'bad-auth')).rejects.toThrow('Delete authorization failed');
+    });
+
+    it('should throw with server error message for other errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: jest.fn().mockResolvedValue({ error: 'server_error' }),
+      });
+      await expect(client.deleteByPassword('abc', 'auth')).rejects.toThrow('server_error');
+    });
+
+    it('should throw generic message when error field is absent', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: jest.fn().mockResolvedValue({}),
+      });
+      await expect(client.deleteByPassword('abc', 'auth')).rejects.toThrow('Failed to delete paste');
+    });
+
+    it('should fall back to Unknown error when json() rejects', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: jest.fn().mockRejectedValue(new Error('not json')),
+      });
+      await expect(client.deleteByPassword('abc', 'auth')).rejects.toThrow('Unknown error');
+    });
+
+    it('should URL-encode the paste ID', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 204 });
+      await client.deleteByPassword('id/with/slashes', 'auth');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/pastes/id%2Fwith%2Fslashes/delete',
+        expect.any(Object)
+      );
+    });
+  });
+
   describe('getPowChallenge', () => {
     it('should return null when PoW is disabled', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -451,6 +517,22 @@ describe('MockApiClient', () => {
 
     it('should throw error for non-existent paste', async () => {
       await expect(client.deletePaste('nonexistent', 'token')).rejects.toThrow('not found');
+    });
+  });
+
+  describe('deleteByPassword', () => {
+    it('should delete an existing paste regardless of auth value', async () => {
+      const request: CreatePasteRequest = {
+        ct: 'ct', iv: 'iv',
+        meta: { expireTs: Math.floor(Date.now() / 1000) + 3600, mime: 'text/plain' },
+      };
+      const created = await client.createPaste(request);
+      await expect(client.deleteByPassword(created.id, 'any-auth')).resolves.not.toThrow();
+      expect(client.size()).toBe(0);
+    });
+
+    it('should throw when paste does not exist', async () => {
+      await expect(client.deleteByPassword('nonexistent', 'auth')).rejects.toThrow('not found');
     });
   });
 

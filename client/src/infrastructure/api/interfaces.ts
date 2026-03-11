@@ -26,5 +26,6 @@ export interface IApiClient {
   createPaste(request: CreatePasteRequest): Promise<CreatePasteResponse>;
   retrievePaste(id: string): Promise<GetPasteResponse>;
   deletePaste(id: string, token: string): Promise<void>;
+  deleteByPassword(id: string, deleteAuth: string): Promise<void>;
   getPowChallenge(): Promise<PowChallenge | null>;
 }

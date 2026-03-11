@@ -1,5 +1,5 @@
 /**
- * sanitize.ts - HTML sanitizer for untrusted content
+ * sanitize.ts - HTML sanitizer and text escaper for untrusted content
  *
  * DOM-walker sanitizer used before any innerHTML assignment.
  * Runs on untrusted paste content rendered as markdown.
@@ -73,4 +73,20 @@ export function sanitizeHtml(html: string): string {
 
   // Safe: all dangerous nodes and attrs have been removed above
   return doc.body.innerHTML;
+}
+
+/**
+ * Escape a plain-text string for safe inclusion in HTML content.
+ *
+ * Use this when you need to interpolate untrusted text into an HTML string
+ * (e.g. building innerHTML templates). Prefer textContent for simple cases.
+ *
+ * @param text - Raw user-supplied string
+ * @returns HTML-escaped string (special chars replaced with entities)
+ */
+export function escapeText(text: string): string {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }

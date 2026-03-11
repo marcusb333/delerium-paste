@@ -32,9 +32,10 @@ async function makeEncryptedPaste(content: string, password: string) {
 
 function makeApiClient(ct: string, iv: string, overrides: Partial<IApiClient> = {}): IApiClient {
   return {
-    createPaste:   jest.fn(),
-    deletePaste:   jest.fn(),
-    getPowChallenge: jest.fn().mockResolvedValue(null),
+    createPaste:      jest.fn(),
+    deletePaste:      jest.fn(),
+    deleteByPassword: jest.fn(),
+    getPowChallenge:  jest.fn().mockResolvedValue(null),
     retrievePaste: jest.fn().mockResolvedValue({
       ct,
       iv,

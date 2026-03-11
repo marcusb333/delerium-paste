@@ -30,24 +30,8 @@ export class DeletePasteUseCase {
       } else {
         // Password-based deletion (anyone with password)
         // Note: deleteAuth is derived in the presentation layer and passed here
-        // Call the delete endpoint with password-derived auth
-        const response = await fetch(`/api/pastes/${encodeURIComponent(command.pasteId)}/delete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deleteAuth: command.tokenOrPassword })
-        });
-
-        if (response.ok || response.status === 204) {
-          return { success: true };
-        } else {
-          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-          return { 
-            success: false, 
-            error: err.error === 'invalid_auth' 
-              ? 'Delete authorization failed. Please refresh the page and try again.' 
-              : err.error || 'Failed to delete paste'
-          };
-        }
+        await this.apiClient.deleteByPassword(command.pasteId, command.tokenOrPassword);
+        return { success: true };
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

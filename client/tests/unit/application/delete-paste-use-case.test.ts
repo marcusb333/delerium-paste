@@ -15,6 +15,7 @@ function makeApiClient(overrides: Partial<IApiClient> = {}): IApiClient {
     createPaste: jest.fn(),
     retrievePaste: jest.fn(),
     deletePaste: jest.fn().mockResolvedValue(undefined),
+    deleteByPassword: jest.fn().mockResolvedValue(undefined),
     getPowChallenge: jest.fn().mockResolvedValue(null),
     ...overrides,
   };
@@ -74,24 +75,10 @@ describe('DeletePasteUseCase – token method', () => {
 // ─── Password-based deletion ─────────────────────────────────────────────────
 
 describe('DeletePasteUseCase – password method', () => {
-  let fetchSpy: jest.SpyInstance;
+  it('should return success when deleteByPassword resolves', async () => {
+    const client = makeApiClient();
+    const useCase = new DeletePasteUseCase(client);
 
-  beforeEach(() => {
-    fetchSpy = jest.spyOn(global, 'fetch');
-  });
-
-  afterEach(() => {
-    fetchSpy.mockRestore();
-  });
-
-  it('should return success on HTTP 204', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      status: 204,
-      json: jest.fn(),
-    } as unknown as Response);
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
     const result = await useCase.execute({
       pasteId: 'abc123',
       method: 'password',
@@ -99,40 +86,18 @@ describe('DeletePasteUseCase – password method', () => {
     });
 
     expect(result.success).toBe(true);
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/pastes/abc123/delete',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ deleteAuth: 'derived-delete-auth' }),
-      })
-    );
+    expect(result.error).toBeUndefined();
+    expect(client.deleteByPassword).toHaveBeenCalledWith('abc123', 'derived-delete-auth');
   });
 
-  it('should return success on HTTP 200', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: jest.fn(),
-    } as unknown as Response);
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
-    const result = await useCase.execute({
-      pasteId: 'xyz',
-      method: 'password',
-      tokenOrPassword: 'auth',
+  it('should return failure when deleteByPassword throws', async () => {
+    const client = makeApiClient({
+      deleteByPassword: jest.fn().mockRejectedValue(
+        new Error('Delete authorization failed. Please refresh the page and try again.')
+      ),
     });
+    const useCase = new DeletePasteUseCase(client);
 
-    expect(result.success).toBe(true);
-  });
-
-  it('should return specific message for invalid_auth error', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: false,
-      status: 403,
-      json: jest.fn().mockResolvedValue({ error: 'invalid_auth' }),
-    } as unknown as Response);
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
     const result = await useCase.execute({
       pasteId: 'abc',
       method: 'password',
@@ -143,14 +108,12 @@ describe('DeletePasteUseCase – password method', () => {
     expect(result.error).toContain('Delete authorization failed');
   });
 
-  it('should return server error message for other errors', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: jest.fn().mockResolvedValue({ error: 'server_error' }),
-    } as unknown as Response);
+  it('should return failure with server error message when deleteByPassword throws', async () => {
+    const client = makeApiClient({
+      deleteByPassword: jest.fn().mockRejectedValue(new Error('server_error')),
+    });
+    const useCase = new DeletePasteUseCase(client);
 
-    const useCase = new DeletePasteUseCase(makeApiClient());
     const result = await useCase.execute({
       pasteId: 'abc',
       method: 'password',
@@ -161,14 +124,12 @@ describe('DeletePasteUseCase – password method', () => {
     expect(result.error).toBe('server_error');
   });
 
-  it('should fall back to generic message when error field is absent', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: jest.fn().mockResolvedValue({}),
-    } as unknown as Response);
+  it('should return failure when deleteByPassword throws a non-Error value', async () => {
+    const client = makeApiClient({
+      deleteByPassword: jest.fn().mockRejectedValue('raw string error'),
+    });
+    const useCase = new DeletePasteUseCase(client);
 
-    const useCase = new DeletePasteUseCase(makeApiClient());
     const result = await useCase.execute({
       pasteId: 'abc',
       method: 'password',
@@ -176,32 +137,15 @@ describe('DeletePasteUseCase – password method', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('Failed to delete paste');
+    expect(result.error).toBe('raw string error');
   });
 
-  it('should handle JSON parse failure gracefully', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: jest.fn().mockRejectedValue(new Error('invalid json')),
-    } as unknown as Response);
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
-    const result = await useCase.execute({
-      pasteId: 'abc',
-      method: 'password',
-      tokenOrPassword: 'auth',
+  it('should return failure on network error', async () => {
+    const client = makeApiClient({
+      deleteByPassword: jest.fn().mockRejectedValue(new Error('Network failure')),
     });
+    const useCase = new DeletePasteUseCase(client);
 
-    expect(result.success).toBe(false);
-    // Falls back to catch-all "Unknown error"
-    expect(result.error).toBeTruthy();
-  });
-
-  it('should return failure when fetch throws (network error)', async () => {
-    fetchSpy.mockRejectedValue(new Error('Network failure'));
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
     const result = await useCase.execute({
       pasteId: 'abc',
       method: 'password',
@@ -210,25 +154,5 @@ describe('DeletePasteUseCase – password method', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('Network failure');
-  });
-
-  it('should URL-encode the paste ID in the request path', async () => {
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      status: 204,
-      json: jest.fn(),
-    } as unknown as Response);
-
-    const useCase = new DeletePasteUseCase(makeApiClient());
-    await useCase.execute({
-      pasteId: 'id/with/slashes',
-      method: 'password',
-      tokenOrPassword: 'auth',
-    });
-
-    expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/pastes/id%2Fwith%2Fslashes/delete',
-      expect.any(Object)
-    );
   });
 });

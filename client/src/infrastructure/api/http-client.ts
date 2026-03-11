@@ -115,6 +115,26 @@ export class HttpApiClient implements IApiClient {
   }
 
   /**
+   * Delete a paste using password-derived auth
+   */
+  async deleteByPassword(id: string, deleteAuth: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/pastes/${encodeURIComponent(id)}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deleteAuth })
+    });
+
+    if (!response.ok && response.status !== 204) {
+      const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(
+        err.error === 'invalid_auth'
+          ? 'Delete authorization failed. Please refresh the page and try again.'
+          : err.error || 'Failed to delete paste'
+      );
+    }
+  }
+
+  /**
    * Get PoW challenge
    */
   async getPowChallenge(): Promise<PowChallenge | null> {

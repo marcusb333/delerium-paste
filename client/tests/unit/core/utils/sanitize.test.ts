@@ -8,7 +8,7 @@
  *         safe pass-through HTML, empty input, nested dangerous elements.
  */
 
-import { sanitizeHtml } from '../../../../src/core/utils/sanitize.js';
+import { sanitizeHtml, escapeText } from '../../../../src/core/utils/sanitize.js';
 
 describe('sanitizeHtml', () => {
   // =========================================================================
@@ -343,5 +343,56 @@ describe('sanitizeHtml', () => {
     it('should return a string type', () => {
       expect(typeof sanitizeHtml('<p>test</p>')).toBe('string');
     });
+  });
+});
+
+// =============================================================================
+// escapeText
+// =============================================================================
+
+describe('escapeText', () => {
+  it('should escape & to &amp;', () => {
+    expect(escapeText('a & b')).toBe('a &amp; b');
+  });
+
+  it('should escape < to &lt;', () => {
+    expect(escapeText('<script>')).toBe('&lt;script&gt;');
+  });
+
+  it('should escape > to &gt;', () => {
+    expect(escapeText('a > b')).toBe('a &gt; b');
+  });
+
+  it('should leave " unescaped (safe in text nodes)', () => {
+    // div.innerHTML escaping via textContent does not encode " in text nodes —
+    // quotes only need escaping inside attribute values, not text content.
+    const result = escapeText('"quoted"');
+    expect(result).not.toContain('<');
+    expect(result).not.toContain('>');
+    expect(result).toContain('"');
+  });
+
+  it('should return empty string for null-like input', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(escapeText(null as any)).toBe('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(escapeText(undefined as any)).toBe('');
+  });
+
+  it('should return plain text unchanged when no special chars', () => {
+    expect(escapeText('hello world')).toBe('hello world');
+  });
+
+  it('should escape multiple special chars in sequence', () => {
+    const result = escapeText('<b>bold</b> & "more"');
+    expect(result).not.toContain('<');
+    expect(result).not.toContain('>');
+    expect(result).toContain('&lt;');
+    expect(result).toContain('&gt;');
+    expect(result).toContain('&amp;');
+  });
+
+  it('should return a string type', () => {
+    expect(typeof escapeText('test')).toBe('string');
   });
 });

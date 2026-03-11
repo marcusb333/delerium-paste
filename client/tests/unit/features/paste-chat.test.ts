@@ -6,7 +6,8 @@
 
 import { deriveKeyFromPassword, generateSalt } from '../../../src/security.js';
 import { encodeBase64Url, decodeBase64Url } from '../../../src/core/crypto/encoding.js';
-import { escapeHtml, generateRandomUsername, ChatView } from '../../../src/presentation/components/chat-view.js';
+import { generateRandomUsername, ChatView } from '../../../src/presentation/components/chat-view.js';
+import { escapeText as escapeHtml } from '../../../src/core/utils/sanitize.js';
 import { ChatUseCase } from '../../../src/application/use-cases/chat-use-case.js';
 import { EncryptionService } from '../../../src/core/services/encryption-service.js';
 import { showPasswordModal } from '../../../src/presentation/components/password-modal.js';
