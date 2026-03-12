@@ -1,0 +1,53 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: delerium-gateway
+  namespace: delerium
+spec:
+  gatewayClassName: nginx
+  listeners:
+  - name: https
+    port: 443
+    protocol: HTTPS
+    hostname: iloverexs.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: iloverexs-com-tls
+  - name: https-www
+    port: 443
+    protocol: HTTPS
+    hostname: www.iloverexs.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - name: iloverexs-com-tls
+  - name: http
+    port: 80
+    protocol: HTTP
+    hostname: iloverexs.com
+  - name: http-www
+    port: 80
+    protocol: HTTP
+    hostname: www.iloverexs.com
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: delerium-route
+  namespace: delerium
+spec:
+  parentRefs:
+  - name: delerium-gateway
+    namespace: delerium
+  hostnames:
+  - iloverexs.com
+  - www.iloverexs.com
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: delerium-server
+      port: 8080

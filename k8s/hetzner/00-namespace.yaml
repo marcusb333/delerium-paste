@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: delerium
+---
+# Create this secret manually:
+#   kubectl -n delerium create secret generic delerium-secrets \
+#     --from-literal=DELETION_TOKEN_PEPPER=<your-pepper> \
+#     --from-literal=POSTGRES_PASSWORD=<your-password>
+#
+# For TLS (Cloudflare Origin Certificate):
+#   kubectl -n delerium create secret tls iloverexs-com-tls \
+#     --cert=origin-cert.pem \
+#     --key=origin-key.pem
