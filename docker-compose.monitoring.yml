@@ -1,0 +1,60 @@
+# docker-compose.monitoring.yml
+# Opt-in monitoring overlay. Start with:
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#
+# Environment variables required (add to .env):
+#   GRAFANA_ADMIN_PASSWORD=<strong password>
+#
+# Access:
+#   Grafana:    http://localhost:3000  (login: admin / $GRAFANA_ADMIN_PASSWORD)
+#   Prometheus: internal only (not exposed to host)
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - app-network
+    # Prometheus is intentionally NOT port-mapped — internal only
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.1
+    restart: unless-stopped
+    command:
+      - '--nginx.scrape-uri=http://web:80/stub_status'
+    depends_on:
+      - web
+    networks:
+      - app-network
+    # nginx-exporter is intentionally NOT port-mapped — internal only
+
+volumes:
+  prometheus-data:
+  grafana-data:
