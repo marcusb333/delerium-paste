@@ -156,6 +156,21 @@ kt_jvm_test(
     ],
 )
 
+# Metrics unit tests
+kt_jvm_test(
+    name = "metrics_test",
+    size = "small",
+    srcs = ["src/test/kotlin/MetricsTest.kt"],
+    test_class = "MetricsTest",
+    deps = [
+        ":delerium_server_lib",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+        "@maven//:org_xerial_sqlite_jdbc",
+        "@maven//:com_zaxxer_HikariCP",
+    ],
+)
+
 # Test suite - run all tests
 test_suite(
     name = "all_tests",
@@ -166,5 +181,6 @@ test_suite(
         ":integration_tests",
         ":storage_test",
         ":failed_attempt_tracker_test",
+        ":metrics_test",
     ],
 )
