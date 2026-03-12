@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delerium-server
+  namespace: delerium
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: delerium-server
+  template:
+    metadata:
+      labels:
+        app: delerium-server
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:17-alpine
+        command:
+        - sh
+        - -c
+        - |
+          until pg_isready -h postgres -p 5432 -U delerium; do
+            echo "postgres:5432 - no response"
+            echo "Waiting for postgres..."
+            sleep 2
+          done
+          echo "postgres is ready"
+      containers:
+      - name: delerium-server
+        image: marcusb333/delerium-server:v1.7.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DELETION_TOKEN_PEPPER
+          valueFrom:
+            secretKeyRef:
+              name: delerium-secrets
+              key: DELETION_TOKEN_PEPPER
+        - name: DB_PATH
+          value: jdbc:postgresql://postgres:5432/delerium
+        - name: DB_USER
+          value: delerium
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: delerium-secrets
+              key: POSTGRES_PASSWORD
+        - name: DATA_ENC_KEYRING_PATH
+          value: /app/keyring.json
+        - name: DATA_ENC_ROTATION_DAYS
+          value: "30"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delerium-server
+  namespace: delerium
+spec:
+  selector:
+    app: delerium-server
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP

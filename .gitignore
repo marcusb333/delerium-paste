@@ -119,6 +119,7 @@ gradle-app.setting
 bazel-*
 .bazel
 .bazelrc.user
+.bazelbsp/
 
 # AI generated folders/files
 *.gpt
