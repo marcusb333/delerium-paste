@@ -56,6 +56,10 @@ maven.install(
         "org.xerial:sqlite-jdbc:3.49.1.0",
         # Crypto
         "org.bouncycastle:bcprov-jdk18on:1.80",
+        # Metrics (Micrometer + Prometheus)
+        "io.ktor:ktor-server-metrics-micrometer-jvm:3.2.0",
+        "io.micrometer:micrometer-registry-prometheus:1.14.4",
+        "io.micrometer:micrometer-core:1.14.4",
         # Test dependencies
         "com.fasterxml.jackson.module:jackson-module-kotlin:2.21.1",
         "junit:junit:4.13.2",
