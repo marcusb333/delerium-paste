@@ -1,0 +1,18 @@
+# monitoring/prometheus.yml
+# Prometheus scrape configuration for Delerium monitoring overlay.
+# All targets are internal Docker services — Prometheus is NOT exposed to the host.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'delerium-server'
+    static_configs:
+      - targets: ['server:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    metrics_path: '/metrics'
