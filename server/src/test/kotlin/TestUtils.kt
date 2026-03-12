@@ -24,6 +24,7 @@ import PowService
 import TokenBucket
 import FailedAttemptTracker
 import AppConfig
+import AppMetrics
 
 /**
  * Create a temporary SQLite database for testing
@@ -208,7 +209,8 @@ fun Application.testModule(
     rl: TokenBucket?,
     pow: PowService?,
     cfg: AppConfig,
-    failedAttemptTracker: FailedAttemptTracker? = null
+    failedAttemptTracker: FailedAttemptTracker? = null,
+    metrics: AppMetrics? = null
 ) {
     install(ContentNegotiation) {
         jackson()
@@ -225,7 +227,7 @@ fun Application.testModule(
         call.response.headers.append("Permissions-Policy", "accelerometer=(), geolocation=(), camera=(), microphone=(), payment=(), usb=()")
     }
     routing {
-        apiRoutes(repo, rl, pow, cfg, failedAttemptTracker)
+        apiRoutes(repo, rl, pow, cfg, failedAttemptTracker, metrics)
     }
 }
 

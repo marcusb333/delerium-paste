@@ -144,9 +144,14 @@ docs/              # security/CHECKLIST.md, architecture/C4-DIAGRAMS.md, etc.
 ## Testing
 
 - **85% overall minimum** (CI enforced); **100% for security-critical** (crypto, security.ts, sanitize.ts, validators)
+- **Every new or changed code path must have tests — no exceptions.** Write tests in the same commit as the code, not as a follow-up.
 - Coverage drops >5% require justification; every PR must add tests for new code
 - Tests: clear names, Arrange-Act-Assert, cover happy/edge/error/security paths, independent (no shared state), test behavior not implementation
 - Run `make ci-check` before every PR
+
+**What always needs tests:** new Kotlin classes/functions, new routes, new TypeScript modules, changed business logic, changed security logic, new utility functions.
+
+**What doesn't need unit tests:** Makefile targets, YAML/JSON config files, documentation, `.env` templates, nginx config (no unit test framework available).
 
 ---
 
@@ -220,6 +225,8 @@ Prefer `"overrides": { "pkg": "^x.y.z" }` in `package.json` over suppression fla
 ## AI Collaboration
 
 **Command approvals:** When a tool call is approved, persist it to `allowedTools` in `.claude/settings.json` (project) or `~/.claude/settings.json` (global). Use glob patterns: `"Bash(git *)"`, `"Bash(make *)"`.
+
+**Tests first:** Write tests for every new class, function, or route in the same commit as the implementation. Never defer tests to a follow-up PR.
 
 **PRs:** small (100–300 lines), one concern, atomic commits, `gh` CLI only, no AI attribution, push after each commit
 
