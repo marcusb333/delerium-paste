@@ -30,6 +30,9 @@ kt_jvm_library(
         "@maven//:org_postgresql_postgresql",
         "@maven//:org_bouncycastle_bcprov_jdk18on",
         "@maven//:com_fasterxml_jackson_module_jackson_module_kotlin",
+        "@maven//:io_ktor_ktor_server_metrics_micrometer_jvm",
+        "@maven//:io_micrometer_micrometer_registry_prometheus",
+        "@maven//:io_micrometer_micrometer_core",
     ],
 )
 
