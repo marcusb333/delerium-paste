@@ -1,7 +1,7 @@
 # Delirium - Zero-Knowledge Paste System
 # Makefile for local development and deployment
 
-.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start generate-local-certs deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop fresh-vps-install bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status
+.PHONY: help setup start stop restart logs dev dev-watch clean test build-client build-server build-server-image health-check quick-start generate-local-certs deploy-full security-scan build-multiarch build-local push-multiarch deploy-prod prod-status prod-logs prod-stop fresh-vps-install bazel-setup build-server-bazel test-server-bazel run-server-bazel ci-check ci-quick version-bump version-bump-dry-run release release-dry-run release-continue k8s-apply k8s-delete k8s-status k8s-setup k8s-install-cert-manager k8s-deploy k8s-tls-prod k8s-cert-status k8s-install-ingress k8s-local aws-create aws-k3s-setup aws-k3s-deploy aws-k3s-status monitoring-up monitoring-down monitoring-logs monitoring-status
 
 # Default target
 help:
@@ -57,8 +57,12 @@ help:
 	@echo "  make security-check - Run security verification"
 	@echo "  make security-scan - Run automated vulnerability scanning"
 	@echo ""
-	@echo "📊 Monitoring:"
-	@echo "  make monitor       - Start service monitoring"
+	@echo "📊 Monitoring (Prometheus + Grafana):"
+	@echo "  make monitoring-up    - Start Prometheus + Grafana overlay (set GRAFANA_ADMIN_PASSWORD in .env)"
+	@echo "  make monitoring-down  - Stop Prometheus + Grafana overlay (preserves data volumes)"
+	@echo "  make monitoring-logs  - Follow Prometheus/Grafana/exporter logs"
+	@echo "  make monitoring-status - Show monitoring stack container status"
+	@echo "  make monitor       - Start service monitoring (scripts/monitor.sh)"
 	@echo "  make backup        - Create data backup"
 	@echo ""
 	@echo "🐳 Docker:"
@@ -219,7 +223,32 @@ security-scan:
 	@chmod +x scripts/security-scan.sh
 	./scripts/security-scan.sh
 
-# Monitor services
+# Prometheus + Grafana monitoring overlay
+monitoring-up:
+	@echo "📊 Starting Prometheus + Grafana monitoring overlay..."
+	@if ! grep -q "GRAFANA_ADMIN_PASSWORD" .env 2>/dev/null || grep -q "GRAFANA_ADMIN_PASSWORD=change-me" .env 2>/dev/null; then \
+		echo "❌ Set GRAFANA_ADMIN_PASSWORD in .env before starting monitoring."; \
+		echo "   Generate one with: openssl rand -base64 20"; \
+		exit 1; \
+	fi
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+	@echo "✅ Monitoring stack started"
+	@echo "   Grafana: http://localhost:3000  (login: admin / \$$GRAFANA_ADMIN_PASSWORD)"
+	@echo "   Prometheus: internal only (not exposed to host)"
+
+monitoring-down:
+	@echo "🛑 Stopping monitoring overlay (data volumes preserved)..."
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml stop prometheus grafana nginx-exporter
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml rm -f prometheus grafana nginx-exporter
+	@echo "✅ Monitoring stack stopped"
+
+monitoring-logs:
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml logs -f prometheus grafana nginx-exporter
+
+monitoring-status:
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml ps prometheus grafana nginx-exporter
+
+# Monitor services (legacy script)
 monitor:
 	@echo "📊 Starting monitoring..."
 	@chmod +x scripts/monitor.sh

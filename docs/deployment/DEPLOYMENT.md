@@ -61,6 +61,35 @@ docker compose -f docker-compose-prod.yml exec -T postgres \
   pg_dump -U delerium delerium | gzip > backups/delerium_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
+## Monitoring (Prometheus + Grafana)
+
+An opt-in monitoring overlay adds Prometheus metrics, Grafana dashboards, and an nginx exporter. The `/metrics` endpoint is internal-only and never proxied externally.
+
+**1. Add to `.env`:**
+```bash
+GRAFANA_ADMIN_PASSWORD=$(openssl rand -base64 20)
+```
+
+**2. Start the overlay:**
+```bash
+make monitoring-up
+# or directly:
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+
+**3. Access Grafana at `http://localhost:3000`** — login: `admin` / your password.
+
+The pre-provisioned **Delerium** dashboard shows paste creation/view rates, HTTP latency (p50/p95/p99), JVM heap, rate limit hits, PoW failures, and nginx connections.
+
+**Manage the overlay:**
+```bash
+make monitoring-status   # show container status
+make monitoring-logs     # follow logs
+make monitoring-down     # stop (data volumes preserved)
+```
+
+Prometheus and the nginx exporter are intentionally not port-mapped. Grafana is the only externally accessible monitoring service (port 3000). Restrict access to port 3000 with your firewall in production.
+
 ## More
 
 - [Auto-deploy (CI/CD)](AUTO_DEPLOYMENT.md) - GitHub Actions + webhook deploy
