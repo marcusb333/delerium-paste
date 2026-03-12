@@ -156,6 +156,24 @@ kt_jvm_test(
     ],
 )
 
+# Metrics route test
+kt_jvm_test(
+    name = "metrics_route_test",
+    size = "small",
+    srcs = glob(["src/test/kotlin/routes/*.kt"]),
+    test_class = "routes.MetricsRouteTest",
+    deps = [
+        ":delerium_server_lib",
+        ":test_utils",
+        "@maven//:junit_junit",
+        "@maven//:org_jetbrains_kotlin_kotlin_test_junit",
+        "@maven//:io_ktor_ktor_server_test_host_jvm",
+        "@maven//:com_fasterxml_jackson_module_jackson_module_kotlin",
+        "@maven//:org_xerial_sqlite_jdbc",
+        "@maven//:com_zaxxer_HikariCP",
+    ],
+)
+
 # Metrics unit tests
 kt_jvm_test(
     name = "metrics_test",
@@ -182,5 +200,6 @@ test_suite(
         ":storage_test",
         ":failed_attempt_tracker_test",
         ":metrics_test",
+        ":metrics_route_test",
     ],
 )

@@ -22,6 +22,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.application.install
+import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
@@ -194,6 +195,10 @@ fun Application.module() {
         if (dbUser != null) username = dbUser
         if (dbPassword != null) password = dbPassword
     })
+    val appMetrics = AppMetrics(hikari)
+    install(MicrometerMetrics) {
+        registry = appMetrics.registry
+    }
     val db = Database.connect(hikari)
     val seedKeyring = System.getenv("DATA_ENC_KEYRING")
     val keyManager = DataKeyManager(
@@ -272,8 +277,13 @@ fun Application.module() {
             call.respondText("OK", ContentType.Text.Plain)
         }
 
+        // Prometheus metrics endpoint — internal only, NOT proxied by nginx
+        get("/metrics") {
+            call.respondText(appMetrics.registry.scrape(), ContentType.Text.Plain)
+        }
+
         // API routes
-        apiRoutes(repo, rl, pow, appCfg, failedAttemptTracker)
+        apiRoutes(repo, rl, pow, appCfg, failedAttemptTracker, appMetrics)
 
         // Static files (served from filesystem directory)
         val staticRoot = java.io.File(staticDir)

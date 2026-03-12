@@ -54,7 +54,7 @@ private fun clientIp(call: ApplicationCall): String {
     return header.trim().ifEmpty { remoteHost }
 }
 
-fun Routing.apiRoutes(repo: PasteRepo, rl: TokenBucket?, pow: PowService?, cfg: AppConfig, failedAttemptTracker: FailedAttemptTracker? = null) {
+fun Routing.apiRoutes(repo: PasteRepo, rl: TokenBucket?, pow: PowService?, cfg: AppConfig, failedAttemptTracker: FailedAttemptTracker? = null, metrics: AppMetrics? = null) {
     route("/api") {
         /**
          * GET /api/health
