@@ -9,4 +9,5 @@ resources:
   - network-policy.yaml
   - pdb.yaml
   - ingress.yaml
+  - flux-image-automation/
   # cert-manager/cluster-issuer.yaml is applied separately after cert-manager is installed
