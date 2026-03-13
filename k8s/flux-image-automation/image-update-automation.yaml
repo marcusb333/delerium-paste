@@ -1,0 +1,24 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: delerium-server
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        name: fluxcdbot
+        email: fluxcdbot@users.noreply.github.com
+      messageTemplate: "chore: update delerium-server to {{.AutomationObject.Status.LastAutomationRunTimestamp}}"
+    push:
+      branch: main
+  update:
+    path: ./k8s
+    strategy: Setters
