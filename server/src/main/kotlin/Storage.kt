@@ -78,7 +78,7 @@ object ChatMessages : Table("chat_messages") {
  * @property pepper Secret value mixed into deletion token hashes
  */
 class PasteRepo(private val db: Database, private val pepper: String, private val keyManager: DataKeyManager) {
-    init { transaction(db) { SchemaUtils.createMissingTablesAndColumns(Pastes, ChatMessages) } }
+    init { transaction(db) { SchemaUtils.create(Pastes, ChatMessages) } }
 
     /**
      * Hash a deletion token with HMAC-SHA256 keyed by the pepper.
