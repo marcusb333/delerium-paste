@@ -47,8 +47,8 @@ a.button {
     padding: var(--space-4);
   }
 
-  /* Larger preset buttons */
-  .preset-btn {
+  /* Larger pill buttons */
+  .pill-btn {
     min-height: 44px;
     padding: var(--space-3) var(--space-4);
     font-size: var(--text-base);

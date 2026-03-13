@@ -34,6 +34,7 @@ test.describe('UI Snapshots', () => {
     
     // Fill in the form (no #views - single-view/max-views removed from UI)
     await page.fill('#paste', 'This is a test paste content for snapshot testing.');
+    await page.click('.pill-btn[data-mins="custom"]');
     await page.fill('#mins', '120');
     
     await page.waitForLoadState('networkidle');
@@ -64,7 +65,7 @@ test.describe('UI Snapshots', () => {
   test('index page - password or PIN required', async ({ page }) => {
     await page.goto('/');
 
-    await page.waitForSelector('#passwordGroup', { state: 'visible' });
+    await page.waitForSelector('#password', { state: 'visible' });
     await page.fill('#password', '1234');
 
     await page.waitForLoadState('networkidle');
@@ -131,7 +132,7 @@ test.describe('UI Snapshots', () => {
     await page.goto('/');
     
     // Focus on preset buttons area
-    const presets = page.locator('.presets');
+    const presets = page.locator('.expiration-pills');
     await expect(presets).toHaveScreenshot('preset-buttons.png');
   });
 

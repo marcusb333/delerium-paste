@@ -1,0 +1,140 @@
+/**
+ * View Page Styles
+ *
+ * Extracted from view.html inline <style> block.
+ * View-specific overrides for paste viewing experience.
+ */
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.status-badge.loading {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Rendered markdown content area */
+#content {
+  background: var(--bg-secondary);
+  padding: 1.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  min-height: 200px;
+  overflow-x: auto;
+}
+
+#content.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-mono);
+}
+
+#content.error {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+}
+
+/* Markdown elements inside rendered content */
+#content h1, #content h2, #content h3,
+#content h4, #content h5, #content h6 {
+  color: var(--text);
+  margin: 1.25rem 0 0.5rem;
+  font-weight: 600;
+}
+#content p { margin: 0.75rem 0; }
+#content a { color: var(--info); text-decoration: underline; text-decoration-color: var(--info-dark); }
+#content a:hover { color: var(--info-light); text-decoration-color: var(--info-light); }
+#content code { background: var(--bg-tertiary); padding: 0.1em 0.3em; border-radius: 3px; font-family: var(--font-mono); font-size: 0.9em; }
+#content pre { background: var(--bg-tertiary); border: 1px solid var(--border); padding: 1rem; border-radius: var(--radius-sm); overflow-x: auto; margin: 1rem 0; }
+#content pre code { background: none; padding: 0; }
+#content blockquote { border-left: 3px solid var(--border); margin: 1rem 0; padding-left: 1rem; color: var(--text-muted); }
+#content ul, #content ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+#content li { margin: 0.25rem 0; }
+#content table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+#content th, #content td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; }
+#content th { background: var(--bg-tertiary); font-weight: 600; }
+#content img { max-width: 100%; border-radius: var(--radius-sm); }
+
+/* Actions */
+.actions {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Info Bar */
+.info-bar {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.info-item { display: flex; align-items: center; gap: 0.5rem; }
+.info-item strong { color: var(--text); }
+
+/* Link popup — shown when user clicks a link in paste content */
+.link-popup {
+  position: fixed;
+  z-index: 1000;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 160px;
+  animation: fadeInDown 0.12s ease-out;
+}
+.link-popup-btn {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.link-popup-btn:last-child { border-bottom: none; }
+.link-popup-btn:hover { background: var(--bg-secondary); color: var(--primary-hover); }
+.link-popup-btn:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .actions { flex-direction: column; }
+  .info-bar { flex-direction: column; align-items: flex-start; }
+}

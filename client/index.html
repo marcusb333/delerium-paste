@@ -20,19 +20,14 @@
     <div class="container">
       <!-- Header -->
       <header class="header" role="banner">
-        <h1 class="logo">Delirium Paste</h1>
-        <p class="tagline">Secure, Zero-Knowledge Paste Sharing</p>
-        <div class="security-badge" role="status" aria-label="Security status">
-          <span aria-hidden="true">🔒</span>
-          <span>End-to-End Encrypted</span>
-        </div>
+        <h1 class="logo">Delirium Paste <span class="logo-badge">E2E Encrypted</span></h1>
       </header>
 
       <!-- Main Card -->
       <main class="card" id="main-content" role="main">
         <!-- Paste Content -->
         <section class="section" aria-labelledby="content-title">
-          <h2 class="section-title" id="content-title">Your Content</h2>
+          <h2 class="sr-only" id="content-title">Your Content</h2>
 
           <!-- Write / Preview tabs -->
           <div class="editor-tabs" role="tablist" aria-label="Editor mode">
@@ -74,53 +69,31 @@
           <div id="markdownPreview" class="markdown-preview" hidden aria-label="Markdown preview" role="tabpanel"></div>
         </section>
 
-        <!-- Expiration Options -->
-        <section class="section" aria-labelledby="expiration-title">
-          <h2 class="section-title" id="expiration-title">Expiration</h2>
-          <div class="option-group">
-            <label for="mins">
-              Expire after (minutes)
-              <span class="tooltip" data-tooltip="How long before the paste is automatically deleted" aria-label="Expiration help">ℹ️</span>
-            </label>
-            <input
-              type="number"
-              id="mins"
-              name="mins"
-              value="60"
-              min="1"
-              max="10080"
-              aria-describedby="expiration-help"
-            >
+        <!-- Form Options: Expiration + Password -->
+        <div class="form-options">
+          <div class="form-option">
+            <label class="form-option-label">Expires in</label>
+            <div class="expiration-pills" role="group" aria-label="Expiration time">
+              <button class="pill-btn" type="button" data-mins="30" aria-label="Set expiration to 30 minutes">30m</button>
+              <button class="pill-btn active" type="button" data-mins="60" aria-label="Set expiration to 1 hour">1h</button>
+              <button class="pill-btn" type="button" data-mins="1440" aria-label="Set expiration to 1 day">1d</button>
+              <button class="pill-btn" type="button" data-mins="10080" aria-label="Set expiration to 1 week">1w</button>
+              <button class="pill-btn" type="button" data-mins="custom" aria-label="Set custom expiration">Custom</button>
+            </div>
+            <input type="number" id="mins" name="mins" value="60" min="1" max="10080"
+                   class="custom-mins-input" style="display: none;"
+                   aria-describedby="expiration-help">
             <div id="expiration-help" class="sr-only">Enter number of minutes before paste expires (1 to 10080)</div>
-            <div class="presets" role="group" aria-label="Quick expiration presets">
-              <button class="preset-btn" type="button" data-mins="60" aria-label="Set expiration to 1 hour">1 hour</button>
-              <button class="preset-btn" type="button" data-mins="1440" aria-label="Set expiration to 1 day">1 day</button>
-              <button class="preset-btn" type="button" data-mins="10080" aria-label="Set expiration to 1 week">1 week</button>
-            </div>
           </div>
-        </section>
-
-        <!-- Security Options -->
-        <section class="section" aria-labelledby="security-title">
-          <h2 class="section-title" id="security-title">Security Options</h2>
-
-          <div id="passwordGroup">
-            <div class="option-group">
-              <label for="password">Password or PIN <span aria-label="required">*</span></label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Enter a password or 4-12 digit PIN"
-                autocomplete="new-password"
-                required
-                aria-describedby="password-help"
-                aria-required="true"
-              >
-              <div id="password-help" class="sr-only">Required: Enter a password or 4-12 digit PIN to encrypt your paste</div>
-            </div>
+          <div class="form-option">
+            <label for="password" class="form-option-label">Password <span class="required-star">*</span></label>
+            <input type="password" id="password" name="password"
+                   placeholder="Password or PIN" autocomplete="new-password"
+                   required aria-required="true"
+                   aria-describedby="password-help">
+            <div id="password-help" class="sr-only">Required: Enter a password or 4-12 digit PIN to encrypt your paste</div>
           </div>
-        </section>
+        </div>
 
         <!-- Submit Button -->
         <button id="save" class="btn-primary" type="button" aria-describedby="save-help">

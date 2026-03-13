@@ -57,7 +57,8 @@ test.describe('Paste Creation and Viewing Flow', () => {
     // Fill in the paste content
     await page.fill('#paste', 'This is a test paste content');
 
-    // Set expiration time
+    // Set expiration time — click Custom pill to reveal the input, then fill
+    await page.click('.pill-btn[data-mins="custom"]');
     await page.fill('#mins', '120');
 
     // Password required for creation
