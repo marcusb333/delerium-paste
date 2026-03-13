@@ -17,7 +17,8 @@ export function onDomReady(callback: () => void): void {
 }
 
 /**
- * Setup character counter for textarea
+ * Setup character counter for textarea.
+ * Counter is hidden when usage is below 80%, shown with warning at 80%+, danger at 90%+.
  */
 export function setupCharCounter(maxCharacters: number): void {
   if (typeof document === 'undefined') return;
@@ -27,12 +28,17 @@ export function setupCharCounter(maxCharacters: number): void {
 
   const updateCounter = (): void => {
     const length = textarea.value.length;
+    const ratio = length / maxCharacters;
     counter.textContent = `${length.toLocaleString()} / ${maxCharacters.toLocaleString()}`;
     counter.classList.remove('warning', 'danger');
-    if (length > maxCharacters * 0.9) {
+    if (ratio >= 0.9) {
       counter.classList.add('danger');
-    } else if (length > maxCharacters * 0.7) {
+      counter.style.display = '';
+    } else if (ratio >= 0.8) {
       counter.classList.add('warning');
+      counter.style.display = '';
+    } else {
+      counter.style.display = 'none';
     }
   };
 
@@ -118,27 +124,42 @@ export function setupSingleViewToggle(): void {
 }
 
 /**
- * Setup expiration preset buttons to update minutes input
+ * Setup expiration pill buttons to update minutes input.
+ * Handles preset values (60, 1440, 10080) and a "custom" option that reveals the number input.
  */
 export function setupExpirationPresets(): void {
   if (typeof document === 'undefined') return;
   const minsInput = document.getElementById('mins') as HTMLInputElement | null;
-  const presetButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.preset-btn[data-mins]'));
-  if (!minsInput || presetButtons.length === 0) return;
+  const pillButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.pill-btn[data-mins]'));
+  if (!minsInput || pillButtons.length === 0) return;
 
-  const applyPreset = (value: string): void => {
+  const setActivePill = (activeBtn: HTMLButtonElement): void => {
+    pillButtons.forEach((btn) => btn.classList.remove('active'));
+    activeBtn.classList.add('active');
+  };
+
+  const applyPreset = (value: string, button: HTMLButtonElement): void => {
+    if (value === 'custom') {
+      setActivePill(button);
+      minsInput.style.display = '';
+      minsInput.focus();
+      return;
+    }
+
     const mins = Number.parseInt(value, 10);
     if (!Number.isFinite(mins)) return;
+    setActivePill(button);
     minsInput.value = String(mins);
+    minsInput.style.display = 'none';
     minsInput.dispatchEvent(new Event('input', { bubbles: true }));
     minsInput.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
-  presetButtons.forEach((button) => {
+  pillButtons.forEach((button) => {
     button.addEventListener('click', () => {
       const value = button.dataset.mins;
       if (!value) return;
-      applyPreset(value);
+      applyPreset(value, button);
     });
   });
 }

@@ -1,65 +1,43 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="referrer" content="no-referrer" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self';">
-    <title>Delete Paste</title>
+    <title>Delete Paste - Delirium</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; max-width: 600px; }
-      .message { padding: 1rem; border-radius: .5rem; margin: 1rem 0; }
-      .error { background: #fee; color: #c00; border: 1px solid #fcc; }
-      .success { background: #efe; color: #060; border: 1px solid #cfc; }
-      .info { background: #eef; color: #006; border: 1px solid #ccf; }
-      button { padding: .6rem 1rem; border-radius: .5rem; border: 1px solid #ddd; cursor: pointer; margin-right: .5rem; }
-      button.danger { background: #c00; color: white; border-color: #a00; }
-      button.danger:hover { background: #d00; }
-      button.danger:disabled { opacity: 0.6; cursor: not-allowed; background: #a00; }
-      .spinner {
-        display: inline-block;
-        width: 0.875rem;
-        height: 0.875rem;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: white;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin-right: 0.5rem;
-        vertical-align: middle;
-      }
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-      .version-display {
-        position: fixed;
-        bottom: 1rem;
-        right: 1rem;
-        background: rgba(0, 0, 0, 0.1);
-        padding: 0.5rem 0.75rem;
-        border-radius: 0.5rem;
-        color: #666;
-        font-size: 0.75rem;
-        font-weight: 500;
-        z-index: 99;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-    </style>
+    <link rel="stylesheet" href="styles/design-system.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/pages.css">
+    <link rel="stylesheet" href="styles/mobile.css">
   </head>
   <body>
-    <h1>Delete Paste</h1>
-    <div id="content">
-      <div class="message info">
-        <strong>Confirm Deletion</strong>
-        <p>Are you sure you want to permanently delete this paste?</p>
-        <p>This action cannot be undone.</p>
-      </div>
-      <button class="danger" id="confirmDelete">Yes, Delete Paste</button>
-      <button onclick="window.close()">Cancel</button>
+    <div class="container" style="max-width: 600px;">
+      <header class="header" role="banner">
+        <h1 class="logo">Delete Paste</h1>
+      </header>
+
+      <main class="card" id="content" role="main">
+        <div class="message info">
+          <p class="delete-warning">Confirm Deletion</p>
+          <p>Are you sure you want to permanently delete this paste?</p>
+          <p>This action cannot be undone.</p>
+        </div>
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-4);">
+          <button class="btn btn-danger" id="confirmDelete">Yes, Delete Paste</button>
+          <button class="btn btn-secondary" onclick="window.close()">Cancel</button>
+        </div>
+      </main>
+
+      <footer class="footer" role="contentinfo">
+        <p>Delirium Paste</p>
+      </footer>
     </div>
 
     <!-- Version Display -->
     <a href="https://github.com/SnarkyB/delerium-paste" target="_blank" rel="noopener noreferrer" class="version-display">v1.7.2</a>
-    
+
     <script src="js/delete.js"></script>
   </body>
 </html>

@@ -25,14 +25,19 @@ describe('DOM Interaction Functions', () => {
     document.body.innerHTML = '';
     
     // Create test HTML structure
+    // Test DOM setup - uses innerHTML for test fixture setup only (safe: static string, no user input)
     document.body.innerHTML = `
       <div>
         <textarea id="paste" rows="16" placeholder="Type or paste text here…"></textarea>
-        <input type="number" id="mins" value="60" min="1">
-        <div class="presets">
-          <button class="preset-btn" type="button" data-mins="60">1 hour</button>
-          <button class="preset-btn" type="button" data-mins="1440">1 day</button>
-          <button class="preset-btn" type="button" data-mins="invalid">Invalid</button>
+        <div id="charCounter" class="char-counter">0 / 1,048,576</div>
+        <input type="number" id="mins" value="60" min="1" style="display: none;">
+        <div class="expiration-pills">
+          <button class="pill-btn" type="button" data-mins="30">30m</button>
+          <button class="pill-btn active" type="button" data-mins="60">1h</button>
+          <button class="pill-btn" type="button" data-mins="1440">1d</button>
+          <button class="pill-btn" type="button" data-mins="10080">1w</button>
+          <button class="pill-btn" type="button" data-mins="custom">Custom</button>
+          <button class="pill-btn" type="button" data-mins="invalid">Invalid</button>
         </div>
         <button id="save">Encrypt & Upload</button>
         <span id="btnText"><span class="btn-icon">🔒</span> Encrypt & Upload</span>
@@ -138,7 +143,7 @@ describe('DOM Interaction Functions', () => {
       setupExpirationPresets();
 
       const minsInput = document.getElementById('mins') as HTMLInputElement;
-      const preset = document.querySelector<HTMLButtonElement>('.preset-btn[data-mins="1440"]');
+      const preset = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="1440"]');
       expect(preset).toBeTruthy();
 
       preset?.click();
@@ -151,7 +156,7 @@ describe('DOM Interaction Functions', () => {
 
       const minsInput = document.getElementById('mins') as HTMLInputElement;
       minsInput.value = '60';
-      const preset = document.querySelector<HTMLButtonElement>('.preset-btn[data-mins="invalid"]');
+      const preset = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="invalid"]');
       expect(preset).toBeTruthy();
 
       preset?.click();
@@ -164,6 +169,87 @@ describe('DOM Interaction Functions', () => {
       minsInput?.remove();
 
       expect(() => setupExpirationPresets()).not.toThrow();
+    });
+
+    it('should toggle active class on pill buttons', async () => {
+      const { setupExpirationPresets } = await import('../../../src/ui/dom-helpers.js');
+      setupExpirationPresets();
+
+      const pill60 = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="60"]');
+      const pill1440 = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="1440"]');
+
+      expect(pill60?.classList.contains('active')).toBe(true);
+      expect(pill1440?.classList.contains('active')).toBe(false);
+
+      pill1440?.click();
+
+      expect(pill60?.classList.contains('active')).toBe(false);
+      expect(pill1440?.classList.contains('active')).toBe(true);
+    });
+
+    it('should show mins input when custom pill is clicked', async () => {
+      const { setupExpirationPresets } = await import('../../../src/ui/dom-helpers.js');
+      setupExpirationPresets();
+
+      const minsInput = document.getElementById('mins') as HTMLInputElement;
+      const customPill = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="custom"]');
+
+      expect(minsInput.style.display).toBe('none');
+
+      customPill?.click();
+
+      expect(minsInput.style.display).toBe('');
+      expect(customPill?.classList.contains('active')).toBe(true);
+    });
+
+    it('should hide mins input when a preset pill is clicked after custom', async () => {
+      const { setupExpirationPresets } = await import('../../../src/ui/dom-helpers.js');
+      setupExpirationPresets();
+
+      const minsInput = document.getElementById('mins') as HTMLInputElement;
+      const customPill = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="custom"]');
+      const pill60 = document.querySelector<HTMLButtonElement>('.pill-btn[data-mins="60"]');
+
+      customPill?.click();
+      expect(minsInput.style.display).toBe('');
+
+      pill60?.click();
+      expect(minsInput.style.display).toBe('none');
+      expect(minsInput.value).toBe('60');
+    });
+  });
+
+  describe('Character Counter', () => {
+    it('should hide counter when usage is below 80%', async () => {
+      const { setupCharCounter } = await import('../../../src/ui/dom-helpers.js');
+      setupCharCounter(1000);
+
+      const counter = document.getElementById('charCounter');
+      expect(counter?.style.display).toBe('none');
+    });
+
+    it('should show counter with warning at 80%', async () => {
+      const { setupCharCounter } = await import('../../../src/ui/dom-helpers.js');
+      const textarea = document.getElementById('paste') as HTMLTextAreaElement;
+
+      textarea.value = 'a'.repeat(800);
+      setupCharCounter(1000);
+
+      const counter = document.getElementById('charCounter');
+      expect(counter?.style.display).toBe('');
+      expect(counter?.classList.contains('warning')).toBe(true);
+    });
+
+    it('should show counter with danger at 90%', async () => {
+      const { setupCharCounter } = await import('../../../src/ui/dom-helpers.js');
+      const textarea = document.getElementById('paste') as HTMLTextAreaElement;
+
+      textarea.value = 'a'.repeat(950);
+      setupCharCounter(1000);
+
+      const counter = document.getElementById('charCounter');
+      expect(counter?.style.display).toBe('');
+      expect(counter?.classList.contains('danger')).toBe(true);
     });
   });
 
