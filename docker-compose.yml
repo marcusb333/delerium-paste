@@ -20,7 +20,7 @@ services:
       - app-network
 
   server:
-    image: marcusb333/delerium-server:v1.7.3
+    image: marcusb333/delerium-server:v1.7.4
     build:
       context: .
       dockerfile: ./server/Dockerfile
