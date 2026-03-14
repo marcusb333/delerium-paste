@@ -15,7 +15,7 @@ Share URL: domain.com/view?p=ID#salt:iv
 - Keys in URL `#fragment` — browsers never send fragments to servers
 - No accounts, tracking, or analytics
 
-**Stack:** TS (strict, ES Modules), Web Crypto API, vendored marked.js + highlight.js (no CDN), Jest + Playwright, 85% min coverage | Kotlin + Ktor, SQLite + Exposed, Bazel, JDK 21+ | Docker + Nginx, multi-arch
+**Stack:** TS (strict, ES Modules), Web Crypto API, vendored marked.js + highlight.js (no CDN), Jest + Playwright, 85% min coverage | Kotlin + Ktor, SQLite + Exposed, Micrometer/Prometheus metrics, Bazel, JDK 21+ | Docker + Nginx, multi-arch, Kubernetes (Hetzner), Flux CD
 
 ---
 
@@ -95,20 +95,22 @@ client/src/
   security.ts                      # encryptWithPassword, decryptWithPassword, deriveDeleteAuth, secureClear
   application/use-cases/           # create-paste, view-paste, delete-paste, chat
   core/
-    crypto/                        # interfaces, aes-gcm, encoding
+    crypto/                        # encoding (AES-GCM + interfaces live in security.ts)
+    models/                        # result.ts (Result<T,E>), paste.ts
     services/                      # encryption-service, paste-service
     utils/sanitize.ts              # sanitizeHtml(), escapeText() — REQUIRED before innerHTML
     validators/index.ts            # validateContentSize, validateExpiration, validatePassword
   infrastructure/api/              # IApiClient, HttpApiClient, MockApiClient; PoW solver
-  presentation/components/         # paste-creator-view, paste-viewer-view, chat-view, password-modal
+  presentation/components/         # paste-creator-view, paste-viewer-view, chat-view, password-modal, loading-indicator
   ui/                              # dom-helpers, ui-manager
   utils/                           # storage, passive-events
 
 server/src/main/kotlin/
-  App.kt / Routes.kt / Storage.kt / DataKeyManager.kt / Pow.kt / RateLimiter.kt / Models.kt / Utils.kt
+  App.kt / Routes.kt / Storage.kt / DataKeyManager.kt / Pow.kt / RateLimiter.kt / Models.kt / Utils.kt / Metrics.kt
 
 client/vendor/     # marked.min.js, highlight.min.js (never CDN)
 docs/              # security/CHECKLIST.md, architecture/C4-DIAGRAMS.md, etc.
+k8s/               # Kubernetes manifests (Hetzner, cert-manager, Flux, ingress, server)
 ```
 
 ---
@@ -171,6 +173,7 @@ docs/              # security/CHECKLIST.md, architecture/C4-DIAGRAMS.md, etc.
 
 ```
 GET    /api/health
+GET    /metrics                          # Prometheus scrape endpoint (internal only)
 GET    /api/pow                          # 204 if disabled
 POST   /api/pastes                       # {ct,iv,meta:{expireTs,mime,allowChat},pow,deleteAuth} → 201 {id,deleteToken}
 GET    /api/pastes/:id                   # → {ct,iv,meta}
@@ -247,11 +250,14 @@ Prefer `"overrides": { "pkg": "^x.y.z" }` in `package.json` over suppression fla
 ## Deployment
 
 ```bash
-docker-compose up -d                                                              # Dev (8080)
-docker-compose -f docker-compose.prod.yml up -d                                   # Prod (80/443)
-docker-compose -f docker-compose.prod.yml -f docker-compose.secure.yml up -d      # HTTPS
+docker compose up -d                                                              # Dev (8080)
+docker compose -f docker-compose.prod.yml up -d                                   # Prod (80/443)
+docker compose -f docker-compose.prod.yml -f docker-compose.secure.yml up -d      # HTTPS
 make deploy-prod                                                                   # VPS + SSL
 make build-multiarch / push-multiarch REGISTRY=... TAG=...
+
+# Monitoring (Prometheus + Grafana + nginx-exporter)
+make monitoring-up / monitoring-down / monitoring-logs / monitoring-status
 ```
 
 ---
@@ -269,4 +275,4 @@ make build-multiarch / push-multiarch REGISTRY=... TAG=...
 
 ## Docs
 
-`docs/getting-started/SETUP.md` · `docs/deployment/DEPLOYMENT.md` · `docs/architecture/C4-DIAGRAMS.md` · `docs/architecture/PROOF_OF_WORK.md` · `client/tests/README.md` · `docs/security/CHECKLIST.md` · `docs/features/ANONYMOUS-CHAT.md` · `docs/development/BAZEL_QUICKSTART.md` · Change docs → `docs/prs/<description>/`
+`docs/getting-started/SETUP.md` · `docs/deployment/DEPLOYMENT.md` · `docs/deployment/KUBERNETES.md` · `docs/architecture/C4-DIAGRAMS.md` · `docs/architecture/PROOF_OF_WORK.md` · `client/tests/README.md` · `docs/security/CHECKLIST.md` · `docs/features/ANONYMOUS-CHAT.md` · `docs/development/BAZEL_QUICKSTART.md` · Change docs → `docs/prs/<description>/`
