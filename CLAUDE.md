@@ -15,7 +15,7 @@ Share URL: domain.com/view?p=ID#salt:iv
 - Keys in URL `#fragment` — browsers never send fragments to servers
 - No accounts, tracking, or analytics
 
-**Stack:** TS (strict, ES Modules), Web Crypto API, vendored marked.js + highlight.js (no CDN), Jest + Playwright, 85% min coverage | Kotlin + Ktor, SQLite + Exposed, Micrometer/Prometheus metrics, Bazel, JDK 21+ | Docker + Nginx, multi-arch, Kubernetes (Hetzner), Flux CD
+**Stack:** TS (strict, ES Modules), Web Crypto API, vendored marked.js + highlight.js (no CDN), Jest + Playwright, 85% min coverage | Kotlin + Ktor, PostgreSQL + Exposed, Micrometer/Prometheus metrics, Bazel, JDK 21+ | Docker + Nginx, multi-arch, Kubernetes (Hetzner), Flux CD
 
 ---
 
